@@ -1,58 +1,9 @@
-# MATLAB
-*.asv
-*.m~
-*.slxc
-*.fig
-# Python
 __pycache__/
 *.pyc
-# Office临时文件
-~.docx
-# IDE缓存
-.vscode/
-.idea/
-# 系统文件
-Thumbs.db
-.DS_Store
-# 仿真输出数据（大文件目录，按需开启）
-output/
-data/
-# MATLAB
-*.asv
-*.m~
-*.slxc
-*.fig
-# Python
-__pycache__/
-*.pyc
-# Office temp
-~.docx
-# IDE cache
-.vscode/
-.idea/
-# system files
-Thumbs.db
-.DS_Store
-# simulation output
-output/
-data/
-# MATLAB
-# MATLAB
-*.asv
-*.m~
-*.slxc
-*.fig
-# Python
-__pycache__/
-*.pyc
-# Office temp
-~.docx
-# IDE cache
-.vscode/
-.idea/
-# system files
-Thumbs.db
-.DS_Store
-# simulation output
-output/
-data/
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+results/
+projects/
+settings.json

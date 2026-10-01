@@ -1,0 +1,2392 @@
+===== PAGE 1 =====
+中  国  电  机  工  程  学  报 
+Proceedings of the CSEE 
+考虑量测数据属权的高比例光伏配电系统 
+公平二分法电压调节 
+刘笑1，刘友波1*，尹航1，许梓荣1，钟晖2，朱超2 
+（1．四川大学电气工程学院，四川省 成都市 610065；2．国网浙江省电力有限公司经济技术研究院） 
+ 
+Voltage Regulation of High-Penetration Photovoltaic Distribution Systems Considering 
+Measurement Data Ownership via Fair Bisection Method 
+Liu Xiao1, Liu Youbo1*, Yin Hang1, Xu Zirong1, Zhong Hui2, Zhu Chao2 
+(1. School of Electrical Engineering, Sichuan University, Chengdu 610065, Sichuan Province, China; 
+2. Economic and Technical Research Institute, State Grid Zhejiang Electric Power Co., Ltd., Hangzhou, 310000, 
+Zhejiang Province, China)
+ABSTRACT: 
+To 
+address 
+voltage 
+violations 
+by 
+high-penetration distributed photovoltaic integration in 
+distribution networks, a novel voltage regulation method 
+with fairness is proposed. First, under unknown network 
+topology and line parameters, voltage sensitivities are 
+estimated from voltage and power measurements collected 
+by edge controllers, and PV units are partitioned according 
+to their electrical proximity. Second, considering each unit's 
+voltage-regulation capability, available curtailment capacity, 
+and historical PV curtailment level, the method constructs 
+curtailment responsibility weights to balance instantaneous 
+voltage-regulation fairness and intertemporal opportunity 
+fairness, matching regulation responsibilities to individual 
+contributions to voltage violations. Furthermore, a bisection 
+method is adopted, and the PV units cooperate according to 
+their responsibility weights. Case studies are conducted on 
+modified IEEE 37-bus and IEEE 141-bus systems. The 
+proposed method reduces the voltage violation rate from 
+79% to 0% and achieves a Jain’s fairness index of 0.82. 
+Moreover, under topology reconfiguration, communication 
+interruption, and distribution-network expansion scenarios, 
+the proposed method consistently maintains all nodal 
+voltages within safe ranges, demonstrating strong robustness 
+and engineering applicability. 
+KEY WORDS: Distribution network, high PV penetration, 
+fairness, bisection method 
+摘要：针对高比例分布式光伏接入配电网引起的电压越限
+问题，提出一种兼顾公平性的电压调节方法。首先，在配
+电网拓扑和线路参数未知的条件下，利用第三方部署的边
+缘控制终端采集电压和功率量测数据，据此估计电压灵敏
+度，并依据节点电气相近性实现光伏分区。其次，综合光
+伏电压调节能力、当前可削减容量及历史弃光水平，构建
+兼顾即时调压责任公平与跨时段机会公平的削减责任权
+重，用于确定光伏削减系数，实现调压责任与电压越限贡
+献度的合理匹配。进一步，采用二分法确定满足电压约束
+的最小削减功率，每个光伏按照削减系数跟随上述削减
+值。基于改进的IEEE 37 节点和IEEE 141 节点系统开展
+算例验证，所提方法将电压越限率由79%降至0%，Jain
+公平指标达到0.82。此外，在拓扑重构、通信中断和配电
+网扩展等场景下，所提方法仍能将节点电压限制在安全范
+围内，具有较好的鲁棒性和工程适应性。 
+关键词：配电网，高比例光伏，公平性，二分法 
+0  引言 
+分布式光伏是新型电力系统中增长最快、最接
+近负荷侧的分布式电源之一。随着接入容量由“分
+散少量”转向“高比例聚集”，配电网潮流由单向
+输送逐步演变为双向甚至频繁反转[1]。午间光伏出
+力与本地负荷不匹配会直接抬升节点电压；传统面
+向慢变化负荷设计的调压方式因而面临动作频率、
+响应速度和可观测性等多重约束[2-3]。 
+根据现有光伏调压方法对配电网模型与数据
+的需求差异，可将其划分为基于模型与无模型两大
+类。基于模型的方法涵盖最优潮流[4]、一致性控制
+[5]和模型预测控制[6]等。当台区信息不完整或运行
+方式调整时，模型偏差会直接影响控制效果与收敛
+基金项目：智能电网重大专项(2030)资助 (2025ZD0806600)。 
+Smart Grid National Science and Technology Major Project 
+(2025ZD0806600). 
+
+===== PAGE 2 =====
+2 
+中  国  电  机  工  程  学  报 
+ 
+性。为进一步消除对模型参数的依赖，深度强化学
+习被视为一种有效的替代方法[7]，其衍生方法如多
+智能体强化学习降低对全局数据依赖[8]，联邦强化
+学习保护数据隐私[9]，图强化学习适应拓扑重构[10]
+等等。然而，仅依赖深度强化学习方法存在模型复
+杂性、收敛性能等问题[11]。特别是对于大规模配电
+网而言，智能体的动作空间维度较大，这进一步加
+重了深度强化学习的收敛负担[12]。深度强化学习缺
+乏可解释性，又导致其存在不安全、不可控和难以
+理解等问题[13]。这些局限性阻碍了深度强化学习的
+实际部署。 
+此外，随着分布式光伏规模化接入，完全依赖
+配电网解决光伏并网引起的过电压问题将面临控
+制压力增大的问题。因此，由光伏业主/投资商承
+担其并网引起的电压治理责任，配网侧只给出安全
+边界或约束[14]。然而，光伏投资商及其控制设备通
+常独立于配网运营侧，其可获取的网络模型和运行
+信息有限，难以及时获得完整的网络拓扑、线路参
+数及全网实时量测数据[15]。因此，其电压调节主要
+依赖投资商自主部署的边缘控制终端和光伏逆变
+器采集的本地电压、功率等有限量测信息。 
+随着分布式光伏向高比例、规模化聚集发展，
+大量光伏台区又带来优化维度高、通信负担重和实
+时协调困难[16]。分区控制为高比例光伏的规模化协
+调提供了另一条路径。其基本思路是按照电气耦合
+关系将配网分解为若干区域，先通过区域间协调解
+决配网安全问题[17]。已有研究利用电压灵敏度、聚
+类和合作博弈等方法构造光伏集群，并据此开展分
+布式电压控制[18-20]。但传统方法依赖离线潮流模
+型，受拓扑和参数准确性制约。对拓扑缺失或动态
+变化的配电网，利用运行量测估计光伏节点间的电
+压响应关系更具工程可行性，可避免完整重建网
+络，实时更新分区。然而，纯数据驱动控制存在样
+本覆盖不足及环境不一致风险。因此，可将量测所
+得的电压灵敏度用于可解释的分区与在线控制，而
+非依赖难以校验的黑箱策略。 
+在通过调节光伏注入功率解决电压越限问题
+时，由于光伏并网削减往往随着距离最近主变压器
+的距离增加而增大，其末端光伏有功功率长期被大
+幅削减，而近主变压器的光伏则受到影响较小[21]。
+为解决这一问题，已提出多种公平性指标，并将其
+嵌入下垂控制和最优潮流控制中，以确保电压安全
+与调节公平性。例如，文献[22]和[23]利用基于平等
+公平性的下垂控制实现公平电压调节。然而，仅依
+赖本地测量的下垂控制无法实现系统层面的全局
+最优。此外，随着光伏逆变器数量的增加，计算复
+杂度也随之上升，因为每个控制器都需要单独设计
+[24]。为此，[24]和[25]提出了一种基于最优潮流方
+法，分别将自消纳率和Jain 系数纳入目标函数或约
+束条件中。但最优潮流依赖于完整的电网参数，获
+取完整且准确的电网参数在实际工程中通常较为
+困难。文献[26]提出一种基于多智能体强化学习的
+配电网公平-安全电压优化控制方法，但强化学习
+存在方差大、难解释等问题。此外，上述方法通常
+要求光伏设备以相同削减模式（如削减量相同、削
+减比例相同）的方式运行，这忽视了电压调节的贡
+献度公平性，导致光伏利用率降低。 
+更重要的是，公平具有明显的时间属性。某一
+时刻按贡献分摊可以体现“谁对电压越限影响大、
+谁承担更多责任”，却不能保证连续运行中各光伏
+主体获得相近的调节机会；反之，只追求累计削减
+相等，又可能让对当前电压几乎没有作用的节点承
+担无效动作[27]，降低光伏利用率。现有公平调度多
+采用单时段或预设权重，历史削减信息通常只作为
+统计评价量[28]。 
+综上，现有研究尚有三点值得进一步解决：一
+是光伏调节对配电网拓扑、线路参数和全局量测等
+配电网资产数据的依赖；二是把瞬时安全责任与历
+史削减补偿同时纳入可解释的公平系数，而不是只
+在结果端计算公平指标；三是基于有限通信和可验
+证的收敛机制，面向高比例光伏配电网以简洁、可
+靠、可解释的算法快速逼近电压安全边界。文献[29]
+指出，低计算和低通信依赖的简洁控制策略更易实
+现，并具有较高的运行可靠性。 
+针对上述问题，本文提出一种适用于高比例光
+伏配电网的公平二分调节方法。该方法首先利用第
+三方部署的光伏边缘控制终端记录的功率-电压响
+应构造灵敏度矩阵，并据此划分光伏区域；随后将
+每个区域视为独立主体，通过瞬时安全责任和跨时
+段历史补偿确定光伏削减系数；最后由部署在馈线
+首端低压侧的光伏边缘控制终端执行二分法，所有
+光伏节点按自身削减系数同步削减有功功率，使馈
+线最大电压收敛至给定安全边界。 
+1  高比例光伏配电网分区 
+本文假设配电网拓扑完全未知，仅依靠光伏边
+缘控制终端采集的配变电压与功率信息进行区域
+
+===== PAGE 3 =====
+ 
+ 
+3 
+划分。该控制器部署在配电变压器低压侧，具备量
+测电压、有功功率、无功功率的功能，终端之间可
+以通信。 
+1.1  高比例光伏配电网分区准则 
+为降低高比例光伏配电网的光伏调节的控制
+维度以及计算复杂度，对光伏台区进行分区处理，
+分区准则满足以下条件。 
+1）电气相近性：要求同一分区内节点电压灵
+敏度相似。保持区域内成员对电压越限具有相似的
+贡献度。其核心目的在于提升分区自治调控能力。 
+2）节点数量规模性：每个分区至少应包含两
+个节点，且各分区之间不应该有重复节点。该准则
+通过排除单节点分区和节点重叠现象，确保分区结
+构的控制独立性[30]。 
+1.2  分区计算模型 
+考虑到本文假设配电网拓扑和线路参数未知，
+分区过程不依赖网络结构信息，而仅利用光伏台区
+边缘控制终端采集的电压与功率量测数据。设参与
+分区的光伏台区集合为式（1）。 
+ 
+
+
+PV
+1,2,
+,
+
+N
+=
+
+ 
+(1) 
+其中，
+PV
+N
+为光伏台区数量。 
+第i 个光伏台区的边缘控制终端可采集其配变
+低压侧电压
+( )
+iV t 和光伏有功功率
+PV( )
+iP
+t 。在滑动时
+间窗内，光伏台区电压变化与有功功率变化之间的
+关系可表示为式（2） 
+ 
+PV
+( )
+( )
+( )
+( )
+t
+t
+t
+t
+
+=
+
++
+V
+S
+P
+ε
+ 
+(2) 
+其中， 
+ 
+PV
+1
+2
+( )
+[
+( ),
+( ),
+,
+( )]T
+N
+t
+V t
+V t
+V
+t
+
+= 
+
+
+V
+
+ 
+(3) 
+ 
+PV
+PV
+PV
+PV
+PV
+1
+2
+( )
+[
+( ),
+( ),
+,
+( )]T
+N
+P
+t
+P
+t
+P
+t
+P
+t
+
+= 
+
+
+
+ (4) 
+ 
+PV
+PV
+( )
+[
+( )]
+ij
+N
+N
+t
+S t
+
+=
+S
+ 
+(5) 
+式中，
+PV
+( )
+( ) /
+( )
+ij
+i
+j
+S
+t
+V t
+P
+t
+= 
+
+表示第j 个光伏台区有
+功功率变化对第i 个光伏台区电压的影响程度。由
+于拓扑未知，本文采用量测数据估计电压灵敏度矩
+阵，如式（6）所示。 
+ 
+2
+2
+PV
+2
+argmin
+( )
+( )
+t
+F
+t T
+
+
+
+
+= −
+=
+
+−
+
++
+
+S
+S
+V
+S P
+S
+(6) 
+其中，T 为滑动时间窗长度，为正则化系数，
+用于降低量测噪声对灵敏度估计的影响。 
+为刻画光伏台区之间的电气相近性，定义第j
+个光伏台区的电压灵敏度特征向量为式（7）。 
+ 
+PV
+1
+2
+ˆ
+ˆ
+ˆ
+[
+,
+,
+,
+]T
+j
+j
+j
+N
+j
+S
+S
+S
+=
+s
+
+ 
+(7) 
+若两个光伏台区的灵敏度特征向量越相似，则
+说明二者对区域电压的影响模式越接近，越适合划
+分到同一分区。因此，光伏台区m 与n 之间的电气
+距离定义为式（8）。 
+ 
+2
+2
+1
+|
+| |
+|
+T
+m n
+mn
+m
+n
+d
+= −
+s s
+s
+s
+ 
+(8) 
+式中，
+mn
+d
+越小，表示两个光伏台区的电压调节作
+用越相似。 
+在此基础上，光伏台区分区模型可表示为式
+（9）。 
+ 
+1
+2
+,
+,
+,
+1
+,
+min
+K
+r
+K
+C C
+C
+mn
+r
+m n C
+d
+=
+
+
+
+ 
+(9) 
+满足约束： 
+ 
+,
+a
+b
+C
+C
+a
+b
+
+= 
+
+ 
+(10) 
+ 
+1
+
+K
+r
+r
+C
+=
+=
+
+ 
+(11) 
+ 
+min
+max
+|
+|
+,
+1,2,
+,
+r
+N
+C
+N
+r
+K
+
+
+=
+
+ 
+(12) 
+式中，r
+C 表示第r 个光伏台区分区，K 为分区数量，
+min
+N
+和
+max
+N
+分别为单个分区包含光伏台区数量的
+下限和上限。上述约束保证每个光伏台区仅属于一
+个分区，且各分区具有合理的节点规模，避免出现
+单台区分区或区域过度集中的问题。 
+需要说明的是，本文分区过程仅依据光伏台区
+之间的电压灵敏度相似性，不引入节点电压越限幅
+值或越限严重程度。电压越限信息仅用于后续判断
+是否启动区域自治调压，不参与分区结构的形成。 
+2 电压安全责任公平分配准则 
+2.1 公平性的定义 
+当光伏出力引起节点电压越限时，需要将区域
+削减指令分配给多个光伏台区。传统的等功率或等
+比例削减只描述单次调节结果，既没有区分各光伏
+对电压越限的实际影响，也无法反映连续运行中部
+分主体被重复削减的问题。因此，削减量在数值上
+
+===== PAGE 4 =====
+4 
+中  国  电  机  工  程  学  报 
+ 
+相同并不必然意味着责任公平。 
+本文将公平性定义为：在满足节点电压安全约
+束的前提下，单次削减责任应与各光伏对电压越限
+的影响程度相匹配；在连续运行过程中，历史上承
+担较多弃光损失的主体应在后续时段获得补偿。前
+者称为即时责任公平，后者称为跨时段机会公平。 
+1）即时责任公平。对越限电压影响较大且具
+有较强调节能力的光伏承担较多当期责任，避免所
+有主体无差别动作造成不必要的弃光。 
+2）跨时段机会公平。历史弃光程度较高的光
+伏在后续时段适当降低光伏削减。 
+2.2 安全责任与历史补偿 
+设区域r 内光伏集合为Cᵣ。区域电压调节贡献
+度为灵敏度之和。光伏i 在时段t 对电压越限最严
+重节点的有功灵敏度为
+,
+vp
+i t
+S
+,可削减功率上限为
+,
+cur
+i t
+P
+。定义光伏i 的即时安全责任度为： 
+ 
+vp
+cur
+,
+,
+sec
+,
+vp
+cur
+,
+,
+|
+|
+|
+|
+r
+i t
+i t
+i t
+i t
+i t
+i C
+S
+P
+R
+S
+P
+
+= 
+ 
+(13) 
+式中，
+sec
+,i t
+R
+同时反映节点的电压调节效率和当前可
+调能力。该值越大，光伏对消除本轮电压越限的作
+用越明显，其光伏调压贡献度公平系数也越大。 
+为衡量连续调节过程中的累计负担，定义光伏
+i 截至时段t-1 的历史弃光率为： 
+ 
+1
+,
+1
+,
+1
+,
+1
+t
+cur
+i
+i t
+t
+ava
+i
+P
+t
+H
+P
+t
+
+
+
+
+
+−
+=
+−
+=
+
+=
++
+
+
+ 
+(14) 
+式中，
+,
+cur
+iP 和
+,
+ava
+iP 分别为光伏i 的削减功率和可用
+发电功率；ε 为防止分母为零的较小正数。
+,i t
+H
+越
+大，表示该主体在历史时段承担的弃光损失越高。 
+进一步定义光伏削减历史补偿因子为： 
+ 
+,
+,
+,
+exp(
+)
+exp(
+)
+r
+i t
+i t
+i t
+i C
+H
+C
+H
+
+
+
+−
+=
+−
+
+ 
+(15) 
+式中，γ 为光伏削减历史补偿因子调节参数。该因
+子随累计弃光率增加而减小，使历史上削减较多的
+光伏在下一轮获得较低的责任权重。 
+综合即时安全责任和历史补偿，公平责任权重
+,i t
+
+表示为： 
+ 
+(
+) (
+)
+(
+) (
+)
+sec
+,
+,
+,
+sec
+,
+,
+r
+i t
+i t
+i t
+i t
+i t
+i C
+R
+C
+R
+C
+
+
+
+
+
+
+=
+
+ 
+(16) 
+式中，α 和β 分别控制安全责任与历史补偿的作用
+程度。增大α 时，削减责任更倾向于调压能力较强
+的节点；增大β 时，分配结果更重视不同主体之间
+的长期弃光均衡。 
+3 光伏调节策略 
+3.1 基于公平二分法光伏调节 
+为更好地与设备资产所有权相匹配，控制视角
+将从配电网转向第三方投资设备。如图1 所示，本
+文所提方法的量测数据来源于部署在含光伏台区
+低压侧的光伏边缘控制终端。所需数据包括：光伏
+台区电压值与光伏发电功率值，这避免了对配电网
+资产量测数据的依赖，如电表数据、配变终端数据
+等，这可满足逐渐推广的光伏四可改造工程对于数
+据来源的需求。同时，所提二分法简单可靠、易于
+理解，相比于不可解释的强化学习等方法，更具有
+可实际部署的价值。二分法在馈线首端处部署的光
+伏边缘控制终端执行，光伏区域之间并行执行动作
+指令，同一区域内光伏按照相同比例削减光伏。 
+110/10kV
+光伏边缘控
+制终端 
+配电变压器
+中压
+低压
+10/0.4kV
+10/0.4kV
+光伏边缘控
+制终端 
+配电变压器
+低压
+负荷
+光伏
+光伏
+光伏
+负荷
+光伏
+10/0.4kV
+光伏边缘控
+制终端 
+主变压器
+ 
+图1  含高比例光伏的配电网结构示意图 
+Fig. 1  Distribution network structure 
+ 
+本文提出了一种公平二分法，可以仅利用光伏
+控制设备和光伏逆变器所测量的数据来确定光伏
+的安全注入功率。控制结构如图2 所示。 
+
+===== PAGE 5 =====
+ 
+ 
+5 
+设备本地电
+压量测
+基于二分法的电压调节策略
+二分法
+不安全
+min,0
+pv
+P
+max,0
+pv
+P
+1
+2
+min,1
+pv
+P
+分配光伏
+削减份额
+终端 1 
+终端 2 
+终端  aa   
+量测
+量测
+量测
+PV
+N
+部署在馈线首端光伏控制终端
+量测
+量测
+量测
+指令
+指令
+指令
+ 
+图2  公平二分法框架 
+Fig. 2  The framework of the fair bisection method 
+如果存在电压越限情况，光伏通过二分法来确
+定光伏控制动作。关于具体的执行过程，在初始动
+作空间中，左限为0，右限为每个光伏最大发电功
+率
+max,
+pv
+i
+P
+之和
+max
+max,1
+max,2
+max,
+PV
+pv
+pv
+pv
+pv
+N
+P
+P
+P
+P
+=
++
++
++
+
+。k 步
+动作范围为
+( )
+( )
+,
+k
+k
+l
+r
+a
+a
+
+
+
+。中间值
+( )
+k
+m
+a
+为光伏有功功率
+削减值。计算过程如式（17）所示。 
+ 
+( )
+( )
+( )
+(
+)
+( )
+( )
+(
+)
+( )
+0
+max
+1
+1
+( )
+2
+,
+,
+,
+,
+pv
+k
+k
+k
+l
+r
+m
+k
+k
+m
+l
+k
+l
+k
+k
+r
+r
+k
+m
+a
+P
+a
+a
+a
+a
+a
+a
+a
+a
+a
++
++
+
+=
+
++
+
+=
+
+
+
+
+= 
+
+
+
+
+
+
+= 
+
+
+
+电压越限
+电压安全
+电压越限
+电压安全
+ 
+(17) 
+在计算出光伏削减功率后，每个光伏以公平责
+任权重系数作为自身的光伏削减系数，乘以基于二
+分法计算出的光伏有功功率削减值，作为自身的光
+伏削减功率值。 
+3.2 二分法收敛性证明 
+记电压安全约束函数为： 
+ 
+curt
+curt
+(
+)
+max(
+(
+)
+1.05)
+
+j
+j
+g P
+V P
+
+=
+−
+ 
+(18) 
+式中：
+curt
+(
+)
+j
+V
+P
+为按削减方向执行有功削减后节
+点j 的电压。当
+curt
+(
+)
+0
+g P
+
+时，表示所有节点电压
+均满足安全约束。 
+根据配电网潮流特性，在高光伏出力导致过电
+压的运行场景下，降低光伏有功注入会降低相关节
+点电压[3]。在线性化DistFlow 模型下，光伏动作后
+电压值具有如下关系式： 
+ 
+(
+)
+curt
+curt
+max
+(
+)
+PV
+UP
+V P
+V P
+S
+P
+=
+−
+
+ 
+(19) 
+式中：
+UP
+S
+为节点电压对光伏有功注入的灵敏度矩
+阵。由于
+0
+UP
+S
+
+，因此
+curt
+(
+)
+V P
+关于
+curt
+P
+单调不增，
+进而
+curt
+(
+)
+g P
+也是关于
+curt
+P
+的单调不增函数。对于
+非线性潮流模型，在正常运行区域内电压关于光伏
+有功注入连续变化，且削减光伏有功不会增加过电
+压节点电压，因此上述单调性仍可作为局部安全调
+节过程中的工程假设。 
+设光伏削减初始搜索区间为
+( )
+( )
+0
+0
+,
+l
+r
+a
+a
+
+
+
+，其中
+(0)
+0
+la
+=
+，( )
+0
+ra
+为馈线下光伏总量可削减的有功功率
+上限。若
+( )
+(
+)
+0
+0
+l
+g a
+
+且
+( )
+(
+)
+0
+0
+r
+g a
+
+，则根据连续性，
+存在至少一个可行削减量
+( )
+( )
+0
+0
+*
+,
+l
+r
+a
+a
+a
+
+
+
+，使得： 
+ 
+*
+(
+)
+0
+g a
+=
+ 
+(20) 
+其中
+*
+*
+curt
+P
+a
+
+=
+，那么
+curt*
+(
+)
+0
+g P
+=
+为满足
+curt*
+(
+)
+0
+g P
+
+的最小可行削减量。 
+每次迭代后均有
+*
+( )
+( )
+,
+k
+k
+l
+r
+a
+a
+a
+
+
+
+,且k 次迭代后
+搜索区间长度满足： 
+ 
+(0)
+(0)
+( )
+( )
+(
+)
+2
+k
+k
+r
+l
+r
+l
+k
+a
+a
+a
+a
+−
+−
+=
+ 
+(21) 
+由此可知，当给定收敛精度ε 时，只需满足： 
+ 
+(0)
+(0)
+2
+ceil log
+r
+l
+a
+a
+k
+
+
+
+
+
+−
+
+
+
+
+
+
+
+
+
+
+
+ 
+(22) 
+即可保证： 
+ 
+( )
+( )
+k
+k
+r
+l
+a
+a
+
+−
+
+ 
+(23) 
+即光伏削减量收敛到最小可行削减量的ε 邻域
+内。由于光伏主体的削减量由固定比例关系唯一确
+定，因此所有光伏主体的有功削减也同步收敛。 
+综上，在节点电压对光伏有功注入连续且单调
+不减、初始搜索区间同时包含安全点和不安全点的
+条件下，所提二分法能够在有限迭代步数内收敛到
+最小光伏削减量的给定精度邻域。算法沿光伏削减
+系数确定的方向同步调整各光伏主体的注入功
+率，因此在满足电压安全约束的同时，保证了即时
+
+===== PAGE 6 =====
+6 
+中  国  电  机  工  程  学  报 
+ 
+电压调节公平与累积光伏削减公平。 
+3.3 公平性量化指标 
+本文利用Jain 系数量化光伏调节公平性。 
+ 
+( )
+2
+1
+2
+1
+JFI
+PV
+PV
+N
+i
+i
+N
+PV
+i
+i
+r
+N
+r
+=
+=
+
+
+
+
+
+
+
+
+=
+
+
+ 
+(24) 
+ 
+curt
+i
+i
+m
+P
+a
+
+=
+ 
+(25) 
+ 
+max,
+curt
+i
+i
+pv
+i
+P
+r
+P
+=
+ 
+(26) 
+式中：ir 为第i 个光伏的归一化削减比例，用于评
+价光伏削减的公平性。
+*
+curt
+i
+i
+P
+a
+
+=
+为光伏i 有功削
+减功率；
+*
+a 为二分法最终收敛结果。 
+4  算例分析 
+4.1 系统参数配置 
+中国四川省巴中市的一个区域被建模为一个
+IEEE 37 节点系统，并将其作为本文测试算例，如
+图3 所示。测试算例包含12 个光伏资源，分别位
+于节点4、7、8、13、15、17、20、22、23、29、
+31、35（依次命名为PV1-PV12）。 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+18
+19
+20
+21
+22
+23
+24
+31
+28
+29
+27
+34
+30
+33
+32
+35
+36
+37
+25 26
+10
+12
+13
+16
+17
+14
+15
+11
+负荷
+线路
+光伏
+区域1
+区域2
+区域3
+区域4
+ 
+图 3  IEEE 37 节点测试系统 
+Fig. 3  IEEE 37-node test system 
+4.2 二分法收敛性分析 
+如图4 所示，随着二分迭代进行，光伏削减功
+率的上下界不断收缩，并最终收敛至约0.46 MW。
+对应节点电压在迭代初期存在一定波动，随后逐渐
+稳定在1.05 p.u.附近，表明公平二分法能够在满足
+电压约束的同时确定较小的光伏削减量。图5 进一
+步给出了第130 天-180 天的收敛结果。收敛标准为
+0.0005p.u.
+=
+。累计61.81%的样本在6 次迭代内
+收敛，全部343 个样本均在7 次迭代内收敛。结果
+表明，所提方法具有稳定的收敛性能，能够在有限
+迭代次数内获得满足电压约束的光伏削减方案。 
+0
+4
+8
+12
+16
+0
+0.4
+0.8
+1.2
+1.6
+迭代次数
+光伏削减功率/MW
+迭代次数
+电压值/p.u.
+0
+4
+8
+12
+16
+1.01
+1.02
+1.03
+1.04
+1.05
+ 
+图4  二分法收敛曲线 
+Fig. 4  Bisection method convergence curve 
+二分法迭代次数
+0
+20
+40
+60
+80
+100
+0
+20
+40
+60
+80
+100
+累积收敛率/%
+样本占比/%
+0.87%
+5.25%
+7.29%
+16.62%
+31.78%
+38.19%
+0.87%
+6.12%
+13.41%
+30.03%
+61.81%
+100.00%
+2
+3
+4
+5
+6
+7
+ 
+图5  二分法收敛统计结果 
+Fig. 5  Convergent statistical results of the bisection 
+method 
+4.3 所提方法性能分析 
+4.3.1 调节目标的灵活性 
+如图6 所示，所提方法可灵活满足不同电压安
+全边界，因此能够有效应对实际场景中不同的电压
+调节要求。 
+ 
+图6  所提方法面对不同控制目标电压调节结果 
+Fig. 6  Voltage regulation results under different voltage 
+control targets. 
+4.3.2 电压调节性能分析 
+以成都某地区的光伏与负荷数据为基础，验证
+所提方法的电压调节性能。采用以15 min 为采样间
+隔的光伏与负荷曲线，在10：00-17：00 时间内进
+行连续电压调节。如图7 所示，在中午时刻，光伏
+具有较大的发电功率，此时电压持续超过安全限制
+
+===== PAGE 7 =====
+ 
+ 
+7 
+1.05 p.u.. 利用所提方法进行电压调节后，所有电压
+均被限制在安全范围内。所提算法调节过程仅需要
+量测配电变压器电压与光伏发电信息，该信息可通
+过光伏边缘控制器获取，避免对配电网资产量测数
+据的依赖（如电表数据、配变终端数据）。 
+11
+10
+时刻/h
+1.04
+1.05
+1.06
+1.07
+1.08
+控制前最大电压
+控制后最大电压
+电压上限
+12
+13
+14
+15
+16
+17
+电压/p.u.
+ 
+图7  所提方法电压调节效果 
+Fig. 7  The voltage regulation effect of the proposed 
+method 
+4.3.3 光伏调节公平性分析 
+光伏调节的公平性在于光伏削减水平，本文的
+公平性从光伏削减系数直接体现。为提升设定时间
+段内的光伏削减的公平性，同时提升光伏消纳量，
+光伏削减系数由历史光伏削减比例和光伏节点电
+压调节能力共同决定，系数设定随具体工况和时间
+动作变化。图8 展示了10：00-17：00 时刻光伏削
+减系数。图9 显示了光伏削减与实际光伏注入功率，
+此时光伏公平性指标Jain 为0.82，避免了对部分光
+伏的持续过度削减。 
+0.02
+0.04
+0.06
+0.08
+0.1
+0.12
+0.14
+光伏削减系数
+区域 1
+区域 2
+区域 3
+区域 4
+11
+10
+时刻/h
+12
+13
+14
+15
+16
+17
+ 
+图8  光伏削减系数 
+Fig. 8  PV curtailment coefficient 
+光伏注入功率
+光伏削减功率
+1 2 3 4 5 6 7 8 9 101112
+0
+1
+2
+3
+4
+5
+6
+7
+1 2 3 4 5 6 7 8 9 101112
+0
+0.04
+0.08
+0.12
+0.16
+0.2
+光伏节点
+光伏节点
+光伏日发电功率/MW
+光伏日削减比例
+ 
+图9  光伏注入与削减功率 
+Fig. 9  PV injection and curtailment power 
+为了体现综合公平性的必要性和优势，我们与
+非公平性方法进行了比较，结果如表1 所示。在不
+考虑光伏削减比例公平性的情况下，公平指标Jain
+仅为0.66。其中，区域1 的节点4、7、8 上的光伏
+因为离根节点较近，电压较为平稳，光伏削减量几
+乎为0。而区域3 距离根节点较远，光伏较为集中，
+频繁出现过电压问题。因此，节点20、22、23 持
+续削减光伏，这种光伏位置差异造成了显著的光伏
+收益不平衡，这容易引起这类光伏用户对电网投诉
+而引发管理纠纷问题。对于仅考虑光伏削减的情
+况，光伏削减功率又显著增加。本文所提方法有效
+地平衡了即时光伏调压贡献度公平与累积光伏削
+减公平。另外，所提方法一个关键优势是光伏运营
+商可以根据实际需求灵活调整光伏削减公平和电
+压贡献度公平。 
+表1  不同公平性光伏电压调节比较结果 
+Tab.1  Comparison Results of voltage regulation for 
+different fairness 
+区域 
+考虑综合公平 
+考虑绝对即时调
+压贡献度公平 
+考虑绝对累积光
+伏削减公平 
+日平均
+削减功
+率/kW 
+削减
+比 
+日平均
+削减功
+率/kW 
+削减
+比 
+日平均
+削减功
+率/kW 
+削减
+比 
+1 
+882 
+12.7% 
+634 
+9.1% 
+1097 
+15.8% 
+2 
+971 
+14% 
+797 
+11.5% 
+1097 
+15.8% 
+3 
+1268 
+18.3% 
+1536 
+22.2% 
+1097 
+15.8% 
+4 
+213 
+3% 
+28 
+0.4% 
+1097 
+15.8% 
+均值 
+833.5 
+12% 
+749 
+10.8% 
+1097 
+15.8% 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+JFI 
+0.82 
+0.66 
+1.00 
+4.3.4 公平性灵敏度分析 
+为分析公平性系数对控制结果的影响，在保持
+其他参数不变的条件下，分别改变即时调压贡献度
+公平系数和累积光伏削减公平系数，并统计相应日
+光伏削减功率和Jain 公平指标，结果如图10 所示。 
+由图10(a)可知，随即时安全责任度公平系数增
+大，日光伏削减功率明显降低。这是因为控制策略
+优先削减对电压越限影响较大的光伏，提高了调节
+效率。相反，增大历史累积光伏削减公平系数会使
+总削减功率略有增加，表明削减均衡性与调节经济
+性之间存在一定权衡。由图10(b)可知，Jain 公平指
+标随累积光伏削减公平系数增大而提高，说明各光
+伏单元的削减分配更加均衡；而随着即时光伏调压
+贡献度公平系数增大，Jain 指标有所下降，表明削
+减责任逐渐向高贡献度节点集中。综合而言，两类
+
+===== PAGE 8 =====
+8 
+中  国  电  机  工  程  学  报 
+ 
+公平性目标分别侧重削减均衡性和调节责任匹配
+性，其系数应结合光伏消纳水平与公平性要求合理
+选取。因此，实际应用中需要综合考虑光伏消纳水
+平、削减均衡性和电压调节责任匹配程度，合理选
+取两类公平性系数。 
+ 
+(a) 光伏削减功率与公平系数关系统计结果 
+ 
+(b) Jain 公平系数与公平系数关系统计结果 
+图10  公平系数灵敏度分析 
+Fig. 10  Sensitivity analysis of the fairness coefficient 
+4.4 算法对比 
+为验证本文所提方法的有效性，将其与以下方
+法进行对比，包括下垂控制方法与MADDPG 方法。
+由表2 可知，在无控制情况下，系统电压越限率达
+到79%，平均电压为1.061 p.u.，采用MADDPG、
+下垂控制和所提方法后，电压越限率均降低至0%，
+说明三种控制方法均能够有效消除光伏接入引起
+的电压越限。然而，不同方法在光伏消纳能力和调
+节公平性方面存在明显差异。光伏削减计算方式为
+每隔15 分钟进行一次电压调节时所有光伏削减量
+的总和，统计时间为10：00-17：00。对比结果如
+表2 所示，MADDPG 和下垂控制的日光伏削减功
+率分别为25988 kW 和15153 kW，而所提方法仅为
+10003 kW，较MADDPG 和下垂控制分别降低
+61.5%和34.0%。与此同时，所提方法的公平性达
+到0.82，分别较MADDPG 和下垂控制提高0.09 和
+0.31。进一步，所提方法控制后的平均电压为1.048 
+p.u.，在满足1.05 p.u.电压安全上限的前提下，更接
+近约束边界。这表明所提方法能够充分利用系统允
+许的电压调节空间，避免因控制策略过于保守而产
+生不必要的光伏削减。而且，如式（17）所示，所
+提方法的电压边界可以根据需要灵活调整，仅需要
+改变安全边界限值，无需改变其他部分。 
+表2  不同方法光伏电压调节比较结果 
+Tab.2  Comparison Results of voltage regulation for 
+different methods 
+方法 
+电压越
+限率 
+平均电压
+/p.u. 
+累积光伏削
+减功率/kW 
+公平性 
+无控制 
+79% 
+1.061 
+/ 
+/ 
+MADDPG 
+0% 
+1.026 
+25988 
+0.73 
+下垂控制 
+0% 
+1.037 
+15153 
+0.51 
+所提方法 
+0% 
+1.048 
+10003 
+0.82 
+由图11 可见，各方法均通过削减部分光伏出
+力实现电压调节，但不同方法对应的光伏注入功率
+和削减功率分布存在明显差异。MADDPG 和下垂
+控制在部分光伏节点产生了较大的削减量，且不同
+光伏单元之间的调节责任分配不够协调。相比之
+下，所提方法在多数光伏节点保持了较高的注入功
+率，并根据各节点对电压越限的贡献合理分配削减
+任务，在减少总削减功率的同时改善了光伏单元之
+间的调节公平性。综上，所提方法实现了电压安全、
+光伏消纳能力与调节公平性之间的有效协调。 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+光伏
+0
+1
+2
+3
+4
+5
+6
+7
+光伏功率/MW
+MADDPG方法光伏注入功率
+下垂控制方法光伏注入功率
+所提方法光伏注入功率
+MADDPG方法光伏削减功率
+下垂控制方法光伏削减功率
+所提方法光伏削减功率
+ 
+图11  不同方法光伏注入与削减功率结果 
+Fig. 11  Results of different methods of PV injection and 
+curtailment power 
+4.5 鲁棒性能分析 
+在高渗透率光伏配电系统中，拓扑重构会影响
+电压分布。如图12 所示，本文设计了新的拓扑结
+构验证所提出方法应对拓扑重构的鲁棒性。本文所
+
+===== PAGE 9 =====
+ 
+ 
+9 
+提方法通过采集电压信息实现对光伏注入功率的
+自适应调节。该算法的核心仅依赖于光伏边缘控制
+终端的量测数据，无需借助配电网络拓扑数据。因
+此，当发生拓扑重构时，所提电压调节策略仍能保
+持稳健性和可行性。 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+18
+19
+20
+21
+22
+23
+24
+31
+28
+29
+27
+34
+30
+33
+32
+35
+36
+37
+25
+26
+10
+12
+13
+16
+17
+14
+15
+11
+负荷
+线路
+光伏
+×
+×
+ 
+图12  IEEE 37 节点拓扑重构场景 
+Fig. 12  IEEE 37-bus topology reconfiguration scenario 
+ 
+关于深度强化学习，不配备光伏设备和控制装
+置的节点无法快速获取本地运行数据（如电压、负
+荷功率等），通常依靠智能电表每15 分钟采集一
+次冻结数据或配变终端采集数据，但这些数据属于
+电网资产，而光伏系统和边缘控制设备则是第三方
+资产。因此，投资者难以及时从配电运营公司获取
+系统的运行数据。这使得为深度强化学习更新配电
+网络运行环境变得困难，从而难以跟踪拓扑变化。 
+拓扑重构场景的调节结果如图13 所示。新的
+拓扑结构导致了新的潮流分布。所提出的方法能够
+将电压值限制在1.05 p.u.以内，这表明所提方法能
+有效响应并适应拓扑变化。 
+10
+11
+12
+13
+14
+15
+16
+17
+时间/h
+1.030
+1.035
+1.040
+1.045
+1.050
+1.055
+1.060
+1.065
+最大电压/p.u.
+调节前最大电压
+调节后最大电压
+ 
+图13  拓扑重构电压调节结果 
+Fig. 13  Voltage regulation results under topology 
+reconfiguration 
+ 
+为了验证所提方法在配电网扩展以及通信中
+断等运行场景下的鲁棒性和适应性，我们进行了以
+下案例研究： 
+T1：通信持续中断场景。 
+T2：配电网扩展场景（即新增节点）。 
+上述场景的配置如图14 所示。 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+18
+19
+20
+21
+22
+23
+24
+31
+28
+29
+27
+34
+30
+33
+32
+35
+36
+37
+25
+26
+10
+12
+13
+16
+17
+14
+15
+11
+38
+39
+40
+新增节点
+通信中断节点
+负荷
+线路
+光伏
+41
+ 
+图14  IEEE 37 节点新场景 
+Fig. 14  IEEE 37-bus new scenarios 
+ 
+在图14 所示的T1-T2 场景下，实施所提电压
+调节方法后，电压幅值如图15 所示。结果显示，
+配电网络扩展和光伏并网数量增加会导致中午时
+段出现电压越限情况。但所提出的方法仍能准确跟
+踪1.05 p.u.的限值。同样，在通信中断时，电压越
+限问题依然得到有效解决。此外，该控制过程仅需
+控制器的测量信息，无需访问配电网资产数据。因
+此，所提方法在应对配电网络扩展以及通信中断时
+表现出优异的鲁棒性和应用性，为第三方投资者提
+供了一种实用且高效的光伏调节策略。 
+ 
+图15  场景T1-T2 电压调节结果 
+Fig. 15  Voltage regulation results for Scenarios T1-T2 
+ 
+4.6 大规模配电网算例 
+本文采用改进的IEEE 141 节点系统来证明所
+提出方法在大规模高比例光伏配电网中的安全调
+节性能，如图16 所示。光伏连接位置如表3 所示，
+光伏节点数量占比超30%。此次案例研究涉及拓扑
+变化、通信中断以及配电网扩展场景。 
+
+===== PAGE 10 =====
+10 
+中  国  电  机  工  程  学  报 
+ 
+1
+2
+3
+4
+34
+5 35
+6
+7
+8
+9
+11
+10
+12
+115 116
+15
+18
+19
+113
+112
+114
+117
+135
+137
+13
+14
+16
+133
+17
+130
+129
+128
+127
+138
+23
+22
+21
+20
+33 36
+105
+104
+106
+103102
+100
+98
+99
+9796
+89
+88
+108
+109
+110
+95
+92
+107
+91 90
+93
+31
+141
+126125 124
+123
+122
+121
+134
+30140
+29
+28
+24
+25
+139
+26
+27
+132 131
+120
+119
+136
+37
+38
+39
+40
+41
+85
+86
+87
+52
+51
+50
+49
+84
+111
+48
+47
+46
+45
+83
+77
+53
+80
+79
+78
+76
+44
+75
+43
+81
+82
+59
+58
+57
+56
+42
+73
+74
+71
+70
+72
+55
+54
+68
+67
+66
+65
+64
+63
+60
+69
+61
+62
+118
+94
+线路
+通信中断
+负荷
+新增节点
+ 
+ 
+ 
+ 
+142
+143
+144
+145
+146
+147
+光伏
+101
+32
+ 
+图16  修改的IEEE 141 节点测试系统 
+Fig. 16  Modified IEEE 141-bus test system 
+ 
+表3  光伏位置 
+Tab.3  PV connection location 
+光伏节点 
+4, 13, 17, 20, 25, 30, 32, 34, 37, 45, 48, 53, 55, 58, 62, 65, 
+67, 69, 72, 73, 76, 80, 81, 85, 87, 88, 93, 98, 100, 101, 105, 
+106, 110, 111, 112, 114, 116, 118, 123, 126, 130, 133, 137 
+我们设计了七种运行场景，具体如下： 
+F1：不进行电压调节。 
+F2：基于所提方法的电压调节。 
+F3：在部分节点通信持续中断的情况下，基于
+所提方法的电压调节。 
+F4：在拓扑结构发生变化后不进行电压调节。 
+F5：在拓扑结构发生变化后，基于所提方法进
+行电压调节。 
+F6：在配电网扩展后不进行电压调节。 
+F7：基于所提方法，配电网扩展后的电压调节
+结果。 
+场景F1-F7 的电压调节结果如图17 所示。如
+图所示，在大规模配电网场景中，所提出的方法能
+够在拓扑结构变化、通信中断和网络扩展的情况下
+确保电压安全。这表明其具有广泛的部署适应性和
+对各种运行场景的稳健性。此外，计算过程仅需要
+控制器之间交换测量数据，而无需配电网提供系统
+信息。所提出的方法简洁易懂，具有可解释性，并
+具有实际可行性，适合光伏投资者需求。 
+ 
+图17  场景F1-F7 电压调节结果 
+Fig. 17  Voltage regulation results for Scenes F1-F7 
+ 
+图18 显示了每日10：00-17：00 光伏有功利用
+情况，此时光伏公平性指标Jain 为0.84，避免了对
+偏远并网光伏的过度削减。 
+ 
+图18  光伏调节结果 
+Fig. 18  Results of PV regulation 
+5  实验验证 
+为进一步验证本文所提出的公平二分法的电
+压调节性能的有效性，通过实验装置模拟两个光伏
+源和1 个负荷，实验设备如图19 所示。负荷为600 
+W。设置220V 为标称电压，安全上限为223V。由
+于实验室场地和线路容量有限，光伏发电功率较
+小，安全范围也划分得较小。 
+
+===== PAGE 11 =====
+ 
+ 
+11 
+ 
+图19 光伏仿真设备 
+Fig. 19 PV simulation devices 
+实验结果如图20 所示，在电压调节前，电压
+最高为224.3 V，但是，在经过所提方法调节后，
+光伏1 和2 分别削减2.8 kW 和2.1 kW。电压值变
+为222.8V，在安全电压范围内。 
+ 
+(a) 电压调节前 
+ 
+(b) 电压调节后 
+图20 电压调节结果 
+Fig. 20 The results of voltage regulation 
+6  结论 
+针对高比例光伏配电网的电压越限和削减责
+任分配问题，本文提出了一种基于公平二分法的光
+伏安全调节方法，主要结论如下： 
+1）提出了面向拓扑和线路参数未知场景的光
+伏分区方法。该方法仅利用边缘控制终端采集的电
+压和功率量测数据估计节点间电压灵敏度，并依据
+电气相近性完成区域划分，降低了控制策略对配电
+网完整模型和运营商数据的依赖。 
+2）构建了兼顾即时安全责任与跨时段机会公
+平的光伏削减机制。通过综合节点电压调节贡献
+度、可削减容量和历史弃光水平，动态确定各光伏
+的削减责任，使高贡献度节点承担与其调节能力相
+匹配的责任，同时避免弃光损失长期集中于少数光
+伏主体。 
+3）设计了公平二分调节策略。光伏通过二分
+搜索确定满足电压安全约束的削减尺度，跟随光伏
+依据公平责任权重协同动作。算例结果表明，该方
+法可在7 次迭代内稳定收敛，并将电压越限率降至
+0%；与MADDPG 和下垂控制相比，光伏削减功率
+分别降低61.5%和34.0%，Jain 公平指标提高至
+0.82，实现了电压安全、光伏消纳与调节公平性的
+协调。 
+4）在拓扑重构、通信中断、配网扩展及IEEE 
+141 节点大规模系统中，所提方法均能够有效抑制
+电压越限，表明其具有较好的场景适应性、鲁棒性
+和规模扩展能力。后续研究将进一步考虑开展实际
+配电台区的现场应用验证。 
+ 
+参考文献 
+[1] 栗峰, 丁杰, 周才期, 等. 新型电力系统下分布式光
+伏规模化并网运行关键技术探讨[J]. 电网技术, 2024, 
+48(1): 184-196. 
+LI Feng, DING Jie, ZHOU Caiqi, et al. Key 
+Technologies of Large-scale Grid-connected Operation 
+of Distributed Photovoltaic Under New-type Power 
+System[J]. Power System Technology, 2024, 48(1): 
+184-196. 
+[2] 刘文龙, 吕志鹏, 刘海涛. 电力电子化配电台区形态
+发展以及运行控制技术综述[J]. 中国电机工程学报, 
+2023, 43(13): 4899-4921. 
+LIU Wenlong, LV Zhipeng, LIU Haitao, et al. An 
+Overview 
+of 
+Morphological 
+Development 
+and 
+Operation Control Technology of Power Electronics 
+Dominated Distribution Area[J]. Proceedings of the 
+
+===== PAGE 12 =====
+12 
+中  国  电  机  工  程  学  报 
+ 
+CSEE, 2023, 43(13): 4899-4921. 
+[3] 柴园园,郭力,王成山,等.含高渗透率光伏的配电网分
+布式电压控制[J].电网技术,2018,42(3):738-746. 
+CHAI Yuanyuan, GUO Li, WANG Chengshan, et al. 
+Distributed Voltage Control in Distribution Networks 
+With High Penetration of PV[J]. Power System 
+Technology, 2018, 42(3): 738-746. 
+[4] 高红均, 刘俊勇, 沈晓东, 徐芮. 主动配电网最优潮
+流研究及其应用实例[J]. 中国电机工程学报, 2017, 
+37(6): 1634–1645. 
+GAO Hongjun, LIU Junyong, SHEN Xiaodong, XU 
+Rui. Optimal Power Flow Research in Active 
+Distribution Network and Its Application Examples[J]. 
+Proceedings of the CSEE, 2017, 37(6): 1634-1645. 
+[5] ZHANG Z, LI P, JI H, et al. Adaptive voltage control of 
+inverter-based DG in active distribution networks with 
+measurement-strategy 
+mapping 
+matrix[J]. 
+IEEE 
+Transactions on Sustainable Energy, 2025, 16(2): 
+1238-1252.  
+[6] WANG L, DUBEY A, GEBREMEDHIN A H, et al. 
+MPC-based decentralized voltage control in power 
+distribution systems with EV and PV coordination[J]. 
+IEEE Transactions on Smart Grid, 2022, 13(4): 
+2908-2919. 
+[7] 毕聪博, 唐聿劼, 罗永红, 陆超. 电力系统优化控制
+中强化学习方法应用及挑战[J]. 中国电机工程学报, 
+2024, 44(1): 1-21. 
+BI Congbo, TANG Yujie, LUO Yonghong, LU Chao. 
+Review on Critical Problems in Reinforcement 
+Learning 
+Methods 
+Applied 
+in 
+Power 
+System 
+Optimization and Control Scenarios[J]. Proceedings of 
+the CSEE, 2024, 44(1): 1-21. 
+[8] 刘友波, 刘俊勇, 高红均, 等. 基于单/多智能体简化
+强化学习的电力系统无功电压控制[J]. 电工技术学
+报, 2024, 39(5): 1300-1312. 
+LIU Youbo, LIU Junyong, GAO Hongjun, et al. 
+Single/Multi Agent Simplified Deep Reinforcement 
+Learning Based Volt-Var Control of Power System[J]. 
+Transactions of China Electrotechnical Society, 2024, 
+39(5): 1300-1312. 
+[9] LIU H, WU W. Federated reinforcement learning for 
+decentralized voltage control in distribution networks[J]. 
+IEEE Transactions on Smart Grid, 2022, 13(5): 
+3840-3843. 
+[10] L. Ge, J. Li, L. Hou, and J. Lai. Autonomous Voltage 
+Regulation for Smart Distribution Network With 
+High-Proportion PVs: A Graph Meta-Reinforcement 
+Learning 
+Approach[J]. 
+IEEE 
+Transactions 
+on 
+Sustainable Energy, 2025, 16(4): 2768–2781. 
+[11] GAO Y, YU N. Model-augmented safe reinforcement 
+learning for Volt-VAR control in power distribution 
+networks[J]. Applied Energy, 2022, 313: 118762. 
+[12] 刘硕, 冯斌, 郭创新, 等. 考虑自注意力和时序记忆
+的深度强化学习配电网无功电压控制策略[J]. 中国
+电机工程学报, 2025, 45(2): 565-577. 
+LIU Shuo, FENG Bin, GUO Chuangxin, et al. Volt-var 
+Control Strategy of Distribution Network Based on 
+Deep 
+Reinforcement 
+Learning 
+Considering 
+Self-attention and Temporal-memory[J]. Proceedings of 
+the CSEE, 2025, 45(2): 565-577. 
+[13] YU P, WANG Z, ZHANG H, SONG Y. Safe 
+reinforcement learning for power system control: A 
+review[J]. Renewable and Sustainable Energy Reviews, 
+2025, 223: 116022. 
+[14] 白晶,金广厚,孙鹤林,等.高渗透光伏配电网第三方主
+体调压辅助服务补偿与获取[J]. 中国电
+力,2023,56(4):95-103+111. 
+BAI Jing, JIN Guanghou, SUN Helin, et al. Third-Party 
+Entity 
+Voltage 
+Regulation 
+Ancillary 
+Service 
+Compensation 
+and 
+Procurement 
+in 
+Distribution 
+Networks with High-Penetration PV[J]. Electric Power 
+2023,56(4):95-103+111. 
+[15] 刘洪, 路劭涵, 徐晶, 等. 规模灵活资源广域接入的
+新型配电系统分层分群架构与规划技术[J]. 中国电
+机工程学报, 2026, 46(5): 1733-1754. 
+LIU Hong, LU Shaohan, XU Jing, et al. Layered and 
+Clustered Architecture and Planning Technology for 
+New-type Distribution Systems With Scaled Integration 
+of Flexible Resource[J]. Proceedings of the CSEE, 
+2026, 46(5): 1733-1754. 
+[16] CAO D, ZHAO J, HU W, et al. Deep reinforcement 
+learning enabled physical-model-free two-timescale 
+voltage 
+control 
+method 
+for 
+active 
+distribution 
+systems[J]. IEEE Transactions on Smart Grid, 2022, 
+13(1): 149-165. 
+[17] 陈皓勇, 谭碧飞, 伍亮, 等. 分层集群的新型电力系
+统运行与控制[J]. 中国电机工程学报, 2023, 43(2): 
+581-594. 
+CHEN Haoyong, TAN Bifei, WU Liang, et al. 
+Operation and Control of the New Power Systems 
+Based on Hierarchical Clusters[J]. Proceedings of the 
+CSEE, 2023, 43(2): 581-594. 
+[18] 唐文虎, 黄文威, 郭采珊, 等. 分布式智能电网的理
+论发展与技术体系[J]. 电网技术, 2025, 49(3): 
+855-867. 
+TANG Wenhu, HUANG Wenwei, GUO Caishan, et al. 
+Exploration 
+on 
+Theoretical 
+and 
+Technological 
+Framework of Distributed Smart Grid[J]. Power System 
+Technology, 2025, 49(3): 855-867. 
+[19] MENG L, YANG X, ZHU J, et al. Network partition 
+
+===== PAGE 13 =====
+ 
+ 
+13 
+and distributed voltage coordination control strategy of 
+active 
+distribution 
+network 
+system 
+considering 
+photovoltaic uncertainty[J]. Applied Energy, 2024, 362: 
+122846. 
+[20] 李晓波, 谢剑锋, 张世乐, 等. 基于集群划分的主动
+配电网电压无功两阶段鲁棒控制策略[J]. 中国电机
+工程学报, 2025, 45(18): 7058-7071. 
+LI Xiaobo, XIE Jianfeng, ZHANG Shile, et al. A 
+Two-stage Robust Strategy for Voltage/Var Control in 
+Active Distribution Networks Based on Cluster 
+Partitioning[J]. Proceedings of the CSEE, 2025, 45(18): 
+7058-7071. 
+[21] YU Hao, RONG Yapeng, JI Haoran, et al., Data-Driven 
+Adaptive Control of Distributed PV Clusters in Active 
+Distribution 
+Networks 
+Based 
+on 
+Primal-Dual 
+Transformation[J]. IEEE Transactions on Sustainable 
+Energy, 2026, 17(3): 2350-2364. 
+[22] Y. Z. Gerdroodbari, R. Razzaghi and F. Shahnia, 
+Decentralized Control Strategy to Improve Fairness in 
+Active Power Curtailment of PV Inverters in 
+Low-Voltage 
+Distribution 
+Networks[J]. 
+IEEE 
+Transactions on Sustainable Energy, 2021, 12(4): 
+2282-2292. 
+[23] STRINGER N, HAGHDADI N, BRUCE A, MACGILL 
+I. Fair consumer outcomes in the balance: Data driven 
+analysis of distributed PV curtailment[J]. Renewable 
+Energy, 2021, 173: 972-986. 
+[24] LIU M Z, PROCOPIOU A T, PETROU K, et al. On the 
+fairness of PV curtailment schemes in residential 
+distribution networks[J]. IEEE Transactions on Smart 
+Grid, 2020, 11(5): 4502-4512. 
+[25] POUDEL S, MUKHERJEE M, SADNAN R, REIMAN 
+A P. Fairness-aware distributed energy coordination for 
+voltage regulation in power distribution systems[J]. 
+IEEE Transactions on Sustainable Energy, 2023, 14(3): 
+1866-1880. 
+[26] 耿骏, 李正烁. 基于公平-安全多智能体深度强化学
+习的三相不平衡配电网电压优化方法[J]. 中国电机
+工程学报, 2025, 45(21): 8323-8337. 
+GEN Jun, LI Zhenshuo. Voltage Optimization Method 
+for Three-phase Unbalanced Distribution Networks 
+Based on Fair-secure Multi-agent Deep Reinforcement 
+Learning[J]. Proceedings of the CSEE, 2025, 45(21): 
+8323-8337. 
+[27] AHMED E E E, DEMIRCI A, POYRAZOGLU G, 
+MANSHADI S D. An equitable active power 
+curtailment framework for overvoltage mitigation in 
+PV-rich 
+active 
+distribution 
+networks[J]. 
+IEEE 
+Transactions on Sustainable Energy, 2024, 15(4): 
+2745-2757. 
+[28] YILDIZ B, STRINGER N, KLYMENKO T, et al. 
+Real-world data analysis of distributed PV and battery 
+energy storage system curtailment in low voltage 
+networks[J]. 
+Renewable 
+and 
+Sustainable 
+Energy 
+Reviews, 2023, 186: 113696. 
+[29] 徐鹏，段梦珂，潘艳，等. 一种适用于直流微电网的
+自适应动态下垂控制策略[J]. 电工电能新技术，
+2022，41(9)：19-26. 
+XU Peng, DUAN Mengke, PAN Yan, et al. Novel 
+adaptive dynamic droop control scheme in DC 
+microgrid[J]. Advanced Technology of Electrical 
+Engineering and Energy, 2022，41(9)：19-26. 
+ 
+ 
+ 
+刘笑 (1999)，男，博士研究生，主要
+研究方向为有源配电网安全运行控制； 
+2024323030006@stu.scu.edu.cn 
+通讯作者：刘友波，男，教授，博士生
+导师，长期从事电力系统人工智能、新型配
+电网、新能源电力市场等，
+liuyoubo@scu.edu.cn。 
+ 
+### 
+刘笑 
+ 
+ 
