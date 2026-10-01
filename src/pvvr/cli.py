@@ -136,8 +136,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_ui = sub.add_parser("ui", help="启动 Web 界面（票据 07）")
     p_ui.set_defaults(func=_cmd_ui)
 
-    p_run = sub.add_parser("run", help="运行仿真（票据 02）")
+    p_run = sub.add_parser("run", help="运行仿真")
     p_run.add_argument("project", help="项目 JSON 路径")
+    p_run.add_argument("--mode", default="snapshot", choices=["snapshot", "24h"],
+                       help="运行模式（默认 snapshot；24h 于票据 03 交付）")
+    p_run.add_argument("--t", type=int, default=None, help="快照取值小时 0-23（默认额定负荷）")
+    p_run.add_argument("--engine", default="opendss", choices=["opendss", "matlab"],
+                       help="仿真引擎（默认 opendss；matlab 于票据 10 交付）")
+    p_run.add_argument("--out", default=None, help="输出目录（默认 settings.output_dir）")
     p_run.set_defaults(func=_cmd_run)
     return parser
 

@@ -1,0 +1,2 @@
+# 运行依赖（Python 3.8/3.12 兼容；opendssdirect.py 含内置 DSS 引擎，无需独立安装）
+opendssdirect.py==0.9.4
