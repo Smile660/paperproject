@@ -30,7 +30,7 @@ def test_ieee33_load_totals_match_baran_wu():
 
 def test_ieee33_per_phase_load_is_one_third():
     p = sch.project_from_dict(ieee33.build_dict())
-    node30 = {n.id: n for n in p.nodes}["30"]        # 200 + j600 kvar 关键母线
+    node30 = {n.id: n for n in p.nodes}["30"]        # 200 + j600 kvar 关键节点
     assert abs(node30.load_kw["A"] - 200.0 / 3.0) < 1e-9
     assert abs(node30.load_kvar["C"] - 600.0 / 3.0) < 1e-9
 

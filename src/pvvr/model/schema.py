@@ -8,12 +8,12 @@ schema_version 并提供迁移。
 阻抗 Ω/km 相域对角（忽略相间互感）；长度 km；载流量 A；光伏容量 kW。
 """
 
-import copy
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 PHASES = ("A", "B", "C")
 SCHEMA_VERSION = 1
+LEADER_AGENT = "leader"  # 通信图保留名：领航者伪代理（v1 平台集中计算不挂接）
 
 
 class SchemaError(Exception):
@@ -316,17 +316,21 @@ def _parse_pv(d: Any, idx: int, errors: List[str]) -> PV:
               controllable=ctrl if ctrl is not None else True)
 
 
-def _parse_curves(d: Any, errors: List[str]) -> Curves:
+def _parse_curves(d: Any, errors: List[str]) -> Optional[Curves]:
+    """统一曲线：load 与 pv 须成对出现且各 24 点（部分曲线视为错误）。"""
     path = "curves"
     if not isinstance(d, dict):
         errors.append("%s: 应为对象" % path)
-        return Curves()
+        return None
+    if not d:
+        return None
     out = Curves()
     for key in ("load", "pv"):
-        arr = d.get(key)
-        if arr is None:
+        if key not in d:
+            errors.append("%s: 统一曲线须同时给出 load 与 pv（缺少 %s）" % (path, key))
             continue
         p = "%s.%s" % (path, key)
+        arr = d[key]
         if not isinstance(arr, list) or not all(
                 isinstance(v, (int, float)) and not isinstance(v, bool) for v in arr):
             errors.append("%s: 应为 24 个非负数值的列表" % p)

@@ -14,8 +14,29 @@ from typing import List, Optional
 
 from pvvr import settings as app_settings
 from pvvr.model import schema as sch
-from pvvr.model import validate as dom
+from pvvr.model import validate as vcheck
 from pvvr.model.presets import PRESETS
+
+
+def _lookup_preset(name):
+    builder = PRESETS.get(name)
+    if builder is None:
+        print("未知预设「%s」，可用：%s" % (name, "、".join(sorted(PRESETS))))
+    return builder
+
+
+def _preset_project(name):
+    """构建预设并解析；预设数据异常时打印中文错误并返回 None（不崩溃）。"""
+    builder = _lookup_preset(name)
+    if builder is None:
+        return None
+    try:
+        return sch.project_from_dict(builder())
+    except sch.SchemaError as exc:
+        print("预设「%s」数据结构错误（内置预设不应发生）：" % name)
+        for e in exc.errors:
+            print("  - %s" % e)
+        return None
 
 
 def _load_project_text(text: str):
@@ -27,7 +48,7 @@ def _load_project_text(text: str):
         for e in exc.errors:
             print("  - %s" % e)
         return None
-    errors = dom.validate_project(project)
+    errors = vcheck.validate_project(project)
     if errors:
         print("领域校验未通过（%d 处）：" % len(errors))
         for e in errors:
@@ -38,42 +59,33 @@ def _load_project_text(text: str):
 
 def _cmd_validate(args) -> int:
     if args.preset:
-        builder = PRESETS.get(args.preset)
-        if builder is None:
-            print("未知预设「%s」，可用：%s" % (args.preset, "、".join(sorted(PRESETS))))
-            return 2
-        text = sch.project_to_json(_project_from_dict(builder()))
+        project = _preset_project(args.preset)
+        if project is None:
+            return 2 if args.preset not in PRESETS else 1
         name = "预设 %s" % args.preset
-    else:
-        if not args.project:
-            print("用法：pvvr validate <project.json> 或 --preset NAME")
-            return 2
-        path = Path(args.project)
-        if not path.exists():
-            print("文件不存在：%s" % path)
-            return 2
-        name = str(path)
-        text = path.read_text(encoding="utf-8")
-    project = _load_project_text(text)
+        print("校验通过：%s（节点 %d，线路 %d，光伏 %d）"
+              % (name, len(project.nodes), len(project.lines), len(project.pvs)))
+        return 0
+    if not args.project:
+        print("用法：pvvr validate <project.json> 或 --preset NAME")
+        return 2
+    path = Path(args.project)
+    if not path.exists():
+        print("文件不存在：%s" % path)
+        return 2
+    project = _load_project_text(path.read_text(encoding="utf-8"))
     if project is None:
         return 1
     print("校验通过：%s（节点 %d，线路 %d，光伏 %d）"
-          % (name, len(project.nodes), len(project.lines), len(project.pvs)))
+          % (path, len(project.nodes), len(project.lines), len(project.pvs)))
     return 0
 
 
-def _project_from_dict(data: dict) -> sch.Project:
-    return sch.project_from_dict(data)
-
-
 def _cmd_preset(args) -> int:
-    builder = PRESETS.get(args.preset)
-    if builder is None:
-        print("未知预设「%s」，可用：%s" % (args.preset, "、".join(sorted(PRESETS))))
-        return 2
-    data = builder()
-    project = _project_from_dict(data)
-    errors = dom.validate_project(project)
+    project = _preset_project(args.preset)
+    if project is None:
+        return 2 if args.preset not in PRESETS else 1
+    errors = vcheck.validate_project(project)
     if errors:
         print("内置预设自身校验失败（不应发生）：")
         for e in errors:
@@ -112,7 +124,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_val = sub.add_parser("validate", help="校验项目 JSON 或内置预设")
     p_val.add_argument("project", nargs="?", default=None, help="项目 JSON 路径")
-    p_val.add_argument("--preset", default=None, help="内置预设名（ieee33/single_phase）")
+    p_val.add_argument("--preset", default=None,
+                       help="内置预设名（%s）" % "、".join(sorted(PRESETS)))
     p_val.set_defaults(func=_cmd_validate)
 
     p_pre = sub.add_parser("preset", help="导出内置预设为项目 JSON")

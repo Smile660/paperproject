@@ -8,6 +8,8 @@
 
 from typing import Dict, List, Tuple
 
+from pvvr.model.presets.curves import LOAD_CURVE, PV_CURVE
+
 # 支路表：(首端, 末端, R_ohm, X_ohm)
 _BRANCHES: List[Tuple[int, int, float, float]] = [
     (1, 2, 0.0922, 0.0470), (2, 3, 0.4930, 0.2511), (3, 4, 0.3660, 0.1864),
@@ -23,7 +25,7 @@ _BRANCHES: List[Tuple[int, int, float, float]] = [
     (31, 32, 0.3105, 0.3619), (32, 33, 0.3410, 0.5302),
 ]
 
-# 负荷表（三相总功率 kW/kvar，母线 1 为平衡节点不带负荷）
+# 负荷表（三相总功率 kW/kvar，节点 1 为平衡节点不带负荷）
 _LOADS: Dict[int, Tuple[float, float]] = {
     2: (100, 60), 3: (90, 40), 4: (120, 80), 5: (60, 30), 6: (60, 20),
     7: (200, 100), 8: (200, 100), 9: (60, 20), 10: (60, 20), 11: (45, 30),
@@ -35,13 +37,6 @@ _LOADS: Dict[int, Tuple[float, float]] = {
 }
 
 _LINE_AMPERES = 400.0  # 统一载流量占位（原文献未给，仅供负载率参考）
-
-_LOAD_CURVE = [0.40, 0.38, 0.36, 0.35, 0.36, 0.40, 0.48, 0.58, 0.66, 0.70,
-               0.74, 0.78, 0.80, 0.78, 0.74, 0.70, 0.68, 0.66, 0.64, 0.62,
-               0.60, 0.55, 0.48, 0.44]
-_PV_CURVE = [0.0, 0.0, 0.0, 0.0, 0.0, 0.05, 0.15, 0.35, 0.60, 0.80,
-             0.92, 1.00, 1.00, 0.98, 0.90, 0.72, 0.45, 0.20, 0.05, 0.0,
-             0.0, 0.0, 0.0, 0.0]
 
 
 def build_dict() -> dict:
@@ -86,7 +81,7 @@ def build_dict() -> dict:
         "lines": lines,
         "line_types": [],
         "pvs": [],
-        "curves": {"load": _LOAD_CURVE, "pv": _PV_CURVE},
+        "curves": {"load": LOAD_CURVE, "pv": PV_CURVE},
         "comm_graph": {"edges": []},
         "algo": {},
     }

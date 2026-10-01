@@ -6,7 +6,7 @@
 
 from typing import Dict, List
 
-from pvvr.model.schema import PHASES, Project
+from pvvr.model.schema import LEADER_AGENT, Project
 
 
 class _UnionFind:
@@ -167,10 +167,10 @@ def validate_project(p: Project) -> List[str]:
         errors.append("馈线须为放射状：环路 %d 由线路 %s 构成，涉及节点 %s"
                       % (i, "、".join(cyc_lines), "、".join(cyc_nodes)))
 
-    # 通信图：端点应为光伏编号（领航者以保留名 leader 表示，v1 不强制挂接）
+    # 通信图：端点应为光伏编号（领航者以保留名表示，v1 平台集中计算不强制挂接）
     for i, e in enumerate(p.comm_graph.edges):
         for side, aid in (("from", e.from_agent), ("to", e.to_agent)):
-            if aid != "leader" and aid not in pvs:
+            if aid != LEADER_AGENT and aid not in pvs:
                 errors.append("通信边 comm_graph.edges[%d].%s「%s」不是已知光伏编号"
                               % (i, side, aid))
     return errors

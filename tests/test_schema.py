@@ -52,6 +52,22 @@ def test_curve_must_be_24_points():
     assert any("24 个" in e for e in ei.value.errors)
 
 
+def test_partial_curves_rejected_roundtrip_safe():
+    """评审修复回归：只给一条曲线曾是合法输入但破坏往返等价（验收 6）。"""
+    data = sch.project_to_dict(sch.default_project())
+    data["curves"] = {"load": [0.5] * 24}          # 缺 pv
+    with pytest.raises(sch.SchemaError) as ei:
+        sch.project_from_dict(data)
+    assert any("同时给出 load 与 pv" in e for e in ei.value.errors)
+
+
+def test_default_project_roundtrip_without_curves():
+    p1 = sch.default_project()
+    assert p1.curves is None
+    p2 = sch.project_from_json(sch.project_to_json(p1))
+    assert sch.project_to_dict(p1) == sch.project_to_dict(p2)
+
+
 def test_vmin_vmax_ordering():
     data = sch.project_to_dict(sch.default_project())
     data["base"]["v_min_pu"] = 1.05

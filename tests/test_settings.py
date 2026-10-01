@@ -36,3 +36,15 @@ def test_corrupt_file_falls_back_to_defaults(tmp_path, monkeypatch):
     monkeypatch.setattr(st, "settings_path", lambda: path)
     path.write_text("{ broken", encoding="utf-8")
     assert st.load_settings() == st.DEFAULTS
+
+
+def test_algo_defaults_nested_merge(tmp_path, monkeypatch):
+    """票据要求 §5 参数默认值进设置持久化：嵌套 algo_defaults 部分更新生效。"""
+    monkeypatch.setattr(st, "settings_path", lambda: tmp_path / "settings.json")
+    st.save_settings({"algo_defaults": {"delta": 0.001, "max_iter": 40}})
+    conf = st.load_settings()
+    assert conf["algo_defaults"]["delta"] == 0.001
+    assert conf["algo_defaults"]["max_iter"] == 40
+    assert conf["algo_defaults"]["alpha"] == 1.0          # 未改子键保留默认
+    # 只改子键不动外层其他设置
+    assert conf["default_engine"] == "opendss"
