@@ -83,6 +83,17 @@ def test_snapshot_control_converges_into_band():
         assert 0.0 <= rec.output[pid] <= rec.avail[pid]
 
 
+def test_sensitivity_weights_differentiated():
+    """式 13 数值回归（2026-10-01 评审修复）：摄动须与基态同负荷工况，
+    否则权重被压平成均分、责任度排序失效。越限节点近旁光伏权重应显著
+    大于异支光伏（ieee33_hp：越限在节点 18，PV1@17/PV2@18 最大）。"""
+    p = _hp()
+    rec = control_snapshot_now(p, hour=12)
+    ws = rec.weights
+    assert max(ws.values()) / min(ws.values()) > 10.0
+    assert ws["PV1"] > ws["PV3"] and ws["PV2"] > ws["PV4"]
+
+
 def test_allocation_and_saturation_flag():
     """饱和钳位：C×ω 超出可用出力 → 全停并标记（FR-4 第 4 步）。"""
     curtail, output, saturated = allocate_curtailment(

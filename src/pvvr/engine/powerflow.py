@@ -173,7 +173,7 @@ class PowerflowSession:
         result.converged = _did_converge()
         if not result.converged:
             raise PowerflowError(
-                "潮流不收敛（控制闭环内求解除）。建议：减小该断面负荷/光伏"
+                "潮流不收敛（控制闭环内求解失败）。建议：减小该断面负荷/光伏"
                 "出力突变幅度，或放宽潮流迭代上限。")
         result.voltages_pu = _read_voltages(self.project, self.naming)
         result.line_loadings = _read_line_loadings(self.project, self.naming)

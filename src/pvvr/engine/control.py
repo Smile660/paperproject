@@ -1,6 +1,6 @@
 """公平二分法电压调节（论文式 13–17、24–26；spec FR-4）。
 
-NFR-4：公平系数 + 二分控制全部集中本文件（MATLAB 镜像同构），
+NFR-4：公平责任权重 + 二分控制全部集中本文件（MATLAB 镜像同构），
 替换公式不影响其余部分。论文已核对（spec §9）：
 
 - 式 13  R_i = |S_vp,i|·P_cur,i / Σ_j |S_vp,j|·P_cur,j
@@ -124,23 +124,23 @@ class FairBisectionController:
         self.pv_ids = [v.id for v in project.pvs if v.controllable]
 
     # -- 式 13 的 S_vp：潮流摄动 ------------------------------------------
-    def _sensitivities(self, avail: Dict[str, float],
-                       base: SnapshotResult) -> Dict[str, float]:
+    def _sensitivities(self, avail_full: Dict[str, float],
+                       base: SnapshotResult,
+                       load_scale: float) -> Dict[str, float]:
+        """对当前越限最严重节点逐台摄动。注意：摄动求解必须与基态同负荷
+        工况（load_scale 一致），且含全部光伏（含不可控者按其可用出力），
+        否则灵敏度量级与责任度排序都会失真（2026-10-01 评审实测）。"""
         _, worst_key = base.max_v()
         sens: Dict[str, float] = {}
         for pid in self.pv_ids:
-            delta = max(1.0, 0.01 * avail[pid])
-            perturbed = dict(avail)
-            perturbed[pid] = max(0.0, avail[pid] - delta)
-            res = self.session.solve(pv_kw=perturbed)
+            step = min(max(1.0, 0.01 * avail_full[pid]), avail_full[pid])
+            perturbed = dict(avail_full)
+            perturbed[pid] = avail_full[pid] - step
+            res = self.session.solve(pv_kw=perturbed, load_scale=load_scale)
             v_worst = res.voltages_pu.get(worst_key, 0.0)
             v_base = base.voltages_pu[worst_key]
-            sens[pid] = (v_base - v_worst) / delta   # 削减降圧 → S > 0
+            sens[pid] = (v_base - v_worst) / step    # 削减降圧 → S > 0
         return sens
-
-    def _allocate(self, c: float, weights: Dict[str, float],
-                  avail: Dict[str, float]) -> Tuple[Dict[str, float], Dict[str, float], List[str]]:
-        return allocate_curtailment(c, weights, avail)
 
     def control_snapshot(self, hour: Optional[int],
                          spec: SnapshotSpec) -> ControlRecord:
@@ -170,12 +170,13 @@ class FairBisectionController:
             rec.status = "不可行"
             rec.curtail = {pid: avail[pid] for pid in self.pv_ids}
             rec.output = {pid: 0.0 for pid in self.pv_ids}
+            rec.saturated = list(self.pv_ids)   # 全停即全部饱和
             rec.result = zero
             self.state.update(avail, rec.curtail)
             return rec
 
         # 公平责任权重（Q-1：断面内固定）
-        sens = self._sensitivities(avail, base)
+        sens = self._sensitivities(avail_full, base, spec.load_scale)
         comp = compensation_factors(self.state, self.pv_ids, p.algo.gamma)
         weights = fairness_weights(sens, avail, comp, p.algo.alpha, p.algo.beta)
         rec.weights = weights
@@ -187,7 +188,7 @@ class FairBisectionController:
         hit = False
         for k in range(1, max_iter + 1):
             mid = 0.5 * (lo + hi)
-            curtail, output, _sat = self._allocate(mid, weights, avail)
+            curtail, output, _sat = allocate_curtailment(mid, weights, avail)
             res = self.session.solve(pv_kw=output, load_scale=spec.load_scale)
             v = res.max_v()[0]
             rec.iterations.append({"k": k, "lo": lo, "hi": hi, "C": mid, "max_v": v})
@@ -196,7 +197,7 @@ class FairBisectionController:
             elif v >= v_max - delta:
                 rec.c_star = mid
                 rec.status = "收敛"
-                rec.curtail, rec.output, rec.saturated = self._allocate(
+                rec.curtail, rec.output, rec.saturated = allocate_curtailment(
                     mid, weights, avail)
                 rec.result = res
                 hit = True
@@ -207,7 +208,7 @@ class FairBisectionController:
         if not hit:
             rec.c_star = best_safe
             rec.status = "未收敛(取保守侧)"
-            rec.curtail, rec.output, rec.saturated = self._allocate(
+            rec.curtail, rec.output, rec.saturated = allocate_curtailment(
                 best_safe, weights, avail)
             rec.result = self.session.solve(pv_kw=rec.output,
                                             load_scale=spec.load_scale)

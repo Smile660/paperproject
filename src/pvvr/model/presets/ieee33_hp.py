@@ -19,7 +19,7 @@ _PV_PLACEMENT: List[Tuple[str, float]] = [
 
 def build_dict() -> dict:
     data = ieee33.build_dict()
-    data["name"] = "IEEE 33 + 高渗透光伏（过电压场景）"
+    data["name"] = "IEEE 33 + 高渗透光伏（过电压断面演示）"
     pvs = []
     for i, (node, cap) in enumerate(_PV_PLACEMENT, start=1):
         pvs.append({
