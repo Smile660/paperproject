@@ -1,0 +1,2 @@
+# 运行依赖随票据逐步固定（票01：仅开发依赖；票02 起：opendss-direct、matplotlib 等）
+pytest==7.4.4
