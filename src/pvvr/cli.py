@@ -109,6 +109,11 @@ def _cmd_ui(args) -> int:
     return 0
 
 
+def _cmd_compare(args) -> int:
+    from pvvr.cli_compare import compare_command
+    return compare_command(args)
+
+
 def _cmd_run(args) -> int:
     try:
         from pvvr.cli_run import run_command  # 票据 02 交付
@@ -164,6 +169,11 @@ def build_parser() -> argparse.ArgumentParser:
                          help="替换哪条曲线")
     p_curve.add_argument("--csv", required=True, help="曲线 CSV 路径")
     p_curve.set_defaults(func=_cmd_set_curve)
+
+    p_cmp = sub.add_parser("compare", help="一键对比：无控制/集中式/公平二分法")
+    p_cmp.add_argument("project", help="项目 JSON 路径")
+    p_cmp.add_argument("--out", default=None, help="输出目录（默认 settings.output_dir）")
+    p_cmp.set_defaults(func=_cmd_compare)
 
     p_run = sub.add_parser("run", help="运行仿真")
     p_run.add_argument("project", help="项目 JSON 路径")
