@@ -48,3 +48,43 @@ def test_run_matlab_engine_stub(tmp_path, capsys):
     rc = cli.main(["run", "whatever.json", "--engine", "matlab"])
     assert rc == 2
     assert "票据 10" in capsys.readouterr().out
+
+
+def test_run_24h_cli(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["preset", "single_phase", "--out", str(tmp_path / "p.json")]) == 0
+    out = tmp_path / "r"
+    rc = cli.main(["run", str(tmp_path / "p.json"), "--mode", "24h",
+                   "--out", str(out)])
+    assert rc == 0
+    console = capsys.readouterr().out
+    assert "24h 仿真完成" in console
+    run_dir = next(out.iterdir())
+    assert (run_dir / "summary.csv").exists()
+    assert (run_dir / "voltages.csv").exists()
+    assert (run_dir / "voltage_trajectory.png").stat().st_size > 10_000
+
+
+def test_run_snapshot_at_hour_cli(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["preset", "single_phase", "--out", str(tmp_path / "p.json")]) == 0
+    rc = cli.main(["run", str(tmp_path / "p.json"), "--t", "12",
+                   "--out", str(tmp_path / "r12")])
+    assert rc == 0
+    assert "第 12 时断面" in capsys.readouterr().out
+
+
+def test_set_curve_cli(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import json
+    proj = tmp_path / "p.json"
+    assert cli.main(["preset", "single_phase", "--out", str(proj)]) == 0
+    csvf = tmp_path / "pv.csv"
+    csvf.write_text("hour,value\n" + "".join("%d,%.3f\n" % (h, 1.0 if h == 10 else 0.0)
+                                             for h in range(24)), encoding="utf-8")
+    rc = cli.main(["set-curve", str(proj), "--kind", "pv", "--csv", str(csvf)])
+    assert rc == 0
+    data = json.loads(proj.read_text(encoding="utf-8"))
+    assert data["curves"]["pv"][10] == 1.0
+    assert sum(data["curves"]["pv"]) == 1.0
+    assert "已将 pv 曲线导入" in capsys.readouterr().out

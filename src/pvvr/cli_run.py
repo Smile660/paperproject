@@ -42,15 +42,46 @@ def run_command(args) -> int:
     if args.engine == "matlab":
         print("MATLAB 引擎尚未交付（票据 10）；当前请使用默认 OpenDSS 引擎。")
         return 2
-    if args.mode != "snapshot":
-        print("24h 时序模式尚未交付（票据 03）；当前支持 --mode snapshot。")
-        return 2
-    from pvvr.engine.powerflow import PowerflowError, solve_snapshot
+    from pvvr.engine.powerflow import PowerflowError
+    from pvvr.engine.simulation import run_day, run_hour
 
     project = _load(args.project)
+    out_dir = Path(args.out) if args.out else Path(app_settings.load_settings()["output_dir"])
+    run_id = "%s_%s" % (datetime.now().strftime("%Y%m%d_%H%M%S"), project.name or "run")
+    run_dir = out_dir / run_id
     started = time.perf_counter()
     try:
-        result = solve_snapshot(project)
+        if args.mode == "24h":
+            day = run_day(project)
+            elapsed = time.perf_counter() - started
+            run_dir.mkdir(parents=True, exist_ok=True)
+            _write_csv(run_dir / "summary.csv",
+                       ["hour", "load_scale", "pv_factor", "max_v", "min_v",
+                        "max_at", "min_at"],
+                       [[r.hour, "%.6f" % r.spec.load_scale,
+                         "%.6f" % r.spec.pv_factor,
+                         "%.6f" % r.result.max_v()[0], "%.6f" % r.result.min_v()[0],
+                         "%s%s" % r.result.max_v()[1], "%s%s" % r.result.min_v()[1]]
+                        for r in day.records])
+            _write_csv(run_dir / "voltages.csv",
+                       ["hour", "node", "phase", "v_pu"],
+                       [[r.hour, n, p, "%.6f" % v]
+                        for r in day.records
+                        for (n, p), v in sorted(r.result.voltages_pu.items())])
+            from pvvr.engine.plot import plot_voltage_trajectory
+            plot_voltage_trajectory(day, run_dir / "voltage_trajectory.png",
+                                    project.base.v_min_pu, project.base.v_max_pu)
+            vmax = max(day.max_v_series())
+            vmin = min(day.min_v_series())
+            over = sum(1 for r in day.records
+                       if r.result.violations(project.base.v_max_pu))
+            print("项目「%s」24h 仿真完成（24 断面，%.1f s）" % (project.name, elapsed))
+            print("  全天最高 %.4f pu，最低 %.4f pu；过电压断面 %d/24" % (vmax, vmin, over))
+            print("结果已写入：%s" % run_dir)
+            return 0
+        # 快照模式
+        rec = run_hour(project, hour=args.t)
+        result = rec.result
     except PowerflowError as exc:
         print("运行失败：%s" % exc)
         return 1
@@ -58,7 +89,9 @@ def run_command(args) -> int:
 
     vmax, (nmax, pmax) = result.max_v()
     vmin, (nmin, pmin) = result.min_v()
-    print("项目「%s」快照潮流求解完成（%.1f ms）" % (project.name, elapsed * 1000.0))
+    hour_tag = "第 %d 时断面" % args.t if args.t is not None else "额定断面"
+    print("项目「%s」快照潮流求解完成（%s，%.1f ms）"
+          % (project.name, hour_tag, elapsed * 1000.0))
     print("  最高电压 %.4f pu @ 节点 %s %s 相；最低电压 %.4f pu @ 节点 %s %s 相"
           % (vmax, nmax, pmax, vmin, nmin, pmin))
     viol = result.violations(project.base.v_max_pu)
@@ -72,9 +105,6 @@ def run_command(args) -> int:
         print("  低电压记录（< %.3g pu，仅报告不控制）：%d 处，最低处 %s %s 相 %.4f pu"
               % (project.base.v_min_pu, len(under), under[0][0], under[0][1], under[0][2]))
 
-    out_dir = Path(args.out) if args.out else Path(app_settings.load_settings()["output_dir"])
-    run_id = "%s_%s" % (datetime.now().strftime("%Y%m%d_%H%M%S"), project.name or "run")
-    run_dir = out_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     volt_file = run_dir / "voltages.csv"
     _write_csv(volt_file, ["node", "phase", "v_pu"],

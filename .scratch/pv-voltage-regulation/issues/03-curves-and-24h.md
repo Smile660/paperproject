@@ -6,7 +6,11 @@
 
 **Status:** ready-for-agent
 
-- [ ] CSV（两列 hour, value，UTF-8）导入成功；负荷 P/Q 与光伏可用出力按峰值缩放计算正确
-- [ ] 24h 无控制运行输出 24 断面电压轨迹 PNG + CSV，中文标签无乱码、300 DPI
-- [ ] 快照模式可选某小时断面或手填值
-- [ ] 曲线为零的夜间断面光伏出力为 0（可用出力语义正确）
+- [x] CSV（两列 hour, value，UTF-8）导入成功；负荷 P/Q 与光伏可用出力按峰值缩放计算正确
+- [x] 24h 无控制运行输出 24 断面电压轨迹 PNG + CSV，中文标签无乱码、300 DPI
+- [x] 快照模式可选某小时断面或手填值
+- [x] 曲线为零的夜间断面光伏出力为 0（可用出力语义正确）
+
+## Comments
+
+- 2026-10-01 完成。matplotlib 预装 3.3.4（镜像无新版，requirements 用环境标记兼容 3.12）；中文字体候选序列（微软雅黑/黑体/Noto）；`set-curve` CLI 子命令就地更新项目曲线；24h 输出 summary.csv + voltages.csv + voltage_trajectory.png。66 项测试全绿。

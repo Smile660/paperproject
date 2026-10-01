@@ -118,6 +118,28 @@ def _cmd_run(args) -> int:
     return run_command(args)
 
 
+def _cmd_set_curve(args) -> int:
+    """曲线 CSV 导入（FR-2）：替换项目统一曲线的 load 或 pv 一条。"""
+    from pvvr.model import curves_io
+    path = Path(args.project)
+    if not path.exists():
+        print("文件不存在：%s" % path)
+        return 2
+    try:
+        values = curves_io.read_curve_csv(Path(args.csv))
+    except curves_io.CurveCsvError as exc:
+        print("曲线 CSV 读取失败：%s" % exc)
+        return 1
+    project = sch.project_from_json(path.read_text(encoding="utf-8"))
+    if project.curves is None:
+        from pvvr.model.schema import Curves
+        project.curves = Curves(load=[1.0] * 24, pv=[1.0] * 24)
+    setattr(project.curves, args.kind, values)
+    path.write_text(sch.project_to_json(project), encoding="utf-8")
+    print("已将 %s 曲线导入项目 %s（峰值 %.4f）" % (args.kind, path, max(values)))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pvvr", description="分布式光伏电压调节仿真平台")
     sub = parser.add_subparsers(dest="command")
@@ -135,6 +157,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_ui = sub.add_parser("ui", help="启动 Web 界面（票据 07）")
     p_ui.set_defaults(func=_cmd_ui)
+
+    p_curve = sub.add_parser("set-curve", help="导入统一曲线 CSV（两列 hour,value）")
+    p_curve.add_argument("project", help="项目 JSON 路径（就地更新）")
+    p_curve.add_argument("--kind", choices=["load", "pv"], required=True,
+                         help="替换哪条曲线")
+    p_curve.add_argument("--csv", required=True, help="曲线 CSV 路径")
+    p_curve.set_defaults(func=_cmd_set_curve)
 
     p_run = sub.add_parser("run", help="运行仿真")
     p_run.add_argument("project", help="项目 JSON 路径")
