@@ -74,6 +74,20 @@ def test_run_snapshot_at_hour_cli(tmp_path, capsys, monkeypatch):
     assert "第 12 时断面" in capsys.readouterr().out
 
 
+def test_run_fair_control_cli(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["preset", "ieee33_hp", "--out", str(tmp_path / "p.json")]) == 0
+    rc = cli.main(["run", str(tmp_path / "p.json"), "--mode", "24h",
+                   "--control", "fair", "--out", str(tmp_path / "r")])
+    assert rc == 0
+    console = capsys.readouterr().out
+    assert "公平二分法控制完成" in console and "JFI" in console
+    run_dir = next((tmp_path / "r").iterdir())
+    for fname in ("curtailment.csv", "iterations.csv", "summary.csv",
+                  "voltages.csv", "voltage_trajectory.png"):
+        assert (run_dir / fname).exists(), fname
+
+
 def test_set_curve_cli(tmp_path, capsys, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import json

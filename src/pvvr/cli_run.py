@@ -38,6 +38,37 @@ def _write_csv(path: Path, header: List[str], rows: List[List[object]]) -> None:
         w.writerows(rows)
 
 
+def _control_outputs(run_dir, day, project):
+    """公平二分法运行的削减/迭代/摘要 CSV 与轨迹图（FR-4 输出项）。"""
+    _write_csv(run_dir / "curtailment.csv",
+               ["hour", "pv", "avail_kw", "curtail_kw", "output_kw", "weight",
+                "saturated"],
+               [[r.hour, pid, "%.6f" % r.avail[pid], "%.6f" % r.curtail.get(pid, 0.0),
+                 "%.6f" % r.output.get(pid, 0.0),
+                 "%.6f" % r.weights.get(pid, 0.0),
+                 1 if pid in r.saturated else 0]
+                for r in day.records for pid in sorted(r.avail)])
+    _write_csv(run_dir / "iterations.csv",
+               ["hour", "k", "lo", "hi", "C", "max_v"],
+               [[r.hour, it["k"], "%.6f" % it["lo"], "%.6f" % it["hi"],
+                 "%.6f" % it["C"], "%.6f" % it["max_v"]]
+                for r in day.records for it in r.iterations])
+    _write_csv(run_dir / "summary.csv",
+               ["hour", "status", "C_star", "max_v", "min_v", "worst_node"],
+               [[r.hour, r.status, "%.6f" % r.c_star,
+                 "%.6f" % r.result.max_v()[0], "%.6f" % r.result.min_v()[0],
+                 "%s%s" % r.worst_node] for r in day.records])
+    _write_csv(run_dir / "voltages.csv",
+               ["hour", "node", "phase", "v_pu"],
+               [[r.hour, n, p, "%.6f" % v]
+                for r in day.records
+                for (n, p), v in sorted(r.result.voltages_pu.items())])
+    from pvvr.engine.plot import plot_voltage_trajectory
+    plot_voltage_trajectory(day, run_dir / "voltage_trajectory.png",
+                            project.base.v_min_pu, project.base.v_max_pu,
+                            title="24h 电压轨迹（公平二分法控制后）")
+
+
 def run_command(args) -> int:
     if args.engine == "matlab":
         print("MATLAB 引擎尚未交付（票据 10）；当前请使用默认 OpenDSS 引擎。")
@@ -51,6 +82,46 @@ def run_command(args) -> int:
     run_dir = out_dir / run_id
     started = time.perf_counter()
     try:
+        if args.control == "fair":
+            from pvvr.engine.control import (control_day, control_snapshot_now)
+            if args.mode == "24h":
+                day = control_day(project)
+                run_dir.mkdir(parents=True, exist_ok=True)
+                _control_outputs(run_dir, day, project)
+                elapsed = time.perf_counter() - started
+                vmax = max(day.max_v_series())
+                n_ctrl = sum(1 for r in day.records if r.status != "无需控制")
+                print("项目「%s」24h 公平二分法控制完成（%.1f s）"
+                      % (project.name, elapsed))
+                print("  控制断面 %d/24；全天最高 %.4f pu（上限 %.3g）；JFI = %.4f"
+                      % (n_ctrl, vmax, project.base.v_max_pu, day.jfi()))
+                for r in day.records:
+                    if r.status not in ("无需控制", "收敛"):
+                        print("  注意：h=%s 状态「%s」" % (r.hour, r.status))
+                print("结果已写入：%s" % run_dir)
+                return 0
+            rec = control_snapshot_now(project, hour=args.t)
+            run_dir.mkdir(parents=True, exist_ok=True)
+            _write_csv(run_dir / "curtailment.csv",
+                       ["pv", "avail_kw", "curtail_kw", "output_kw", "weight",
+                        "saturated"],
+                       [[pid, "%.6f" % rec.avail[pid],
+                         "%.6f" % rec.curtail.get(pid, 0.0),
+                         "%.6f" % rec.output.get(pid, 0.0),
+                         "%.6f" % rec.weights.get(pid, 0.0),
+                         1 if pid in rec.saturated else 0]
+                        for pid in sorted(rec.avail)])
+            _write_csv(run_dir / "iterations.csv",
+                       ["k", "lo", "hi", "C", "max_v"],
+                       [[it["k"], "%.6f" % it["lo"], "%.6f" % it["hi"],
+                         "%.6f" % it["C"], "%.6f" % it["max_v"]]
+                        for it in rec.iterations])
+            hour_tag = "第 %d 时断面" % args.t if args.t is not None else "额定断面"
+            print("项目「%s」快照公平二分法控制完成（%s）" % (project.name, hour_tag))
+            print("  状态「%s」；C* = %.2f kW；控制后 maxV = %.4f pu"
+                  % (rec.status, rec.c_star, rec.result.max_v()[0]))
+            print("结果已写入：%s" % run_dir)
+            return 0
         if args.mode == "24h":
             day = run_day(project)
             elapsed = time.perf_counter() - started

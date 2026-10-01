@@ -172,6 +172,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--t", type=int, default=None, help="快照取值小时 0-23（默认额定负荷）")
     p_run.add_argument("--engine", default="opendss", choices=["opendss", "matlab"],
                        help="仿真引擎（默认 opendss；matlab 于票据 10 交付）")
+    p_run.add_argument("--control", default="none", choices=["none", "fair"],
+                       help="控制方式：none=无控制基线；fair=公平二分法（票据 04）")
     p_run.add_argument("--out", default=None, help="输出目录（默认 settings.output_dir）")
     p_run.set_defaults(func=_cmd_run)
     return parser

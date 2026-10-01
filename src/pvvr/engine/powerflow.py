@@ -119,6 +119,67 @@ def _did_converge() -> bool:
     return bool(dss.Solution.Converged())
 
 
+class PowerflowSession:
+    """编译一次、逐次改参数再求解——控制闭环用（每断面十几次潮流，
+    整脚本重编译不可接受）。负荷与光伏出力经属性编辑更新。"""
+
+    def __init__(self, project: Project):
+        self.project = project
+        self.naming = DssNaming(project)
+        _reset_engine()
+        _run_script(build_dss_text(project, naming=self.naming, emit_solve=False))
+        # 负荷基准（缩放编辑用；与 dss_writer 一致地跳过零负荷）
+        self._base_load = {}
+        for n in project.nodes:
+            for ph, pkw in n.load_kw.items():
+                qkvar = n.load_kvar.get(ph, 0.0)
+                if pkw <= 0 and qkvar <= 0:
+                    continue
+                self._base_load[(n.id, ph)] = (pkw, qkvar)
+        self._last_scale = None
+        self._last_pv_state = {}   # pv_id -> (enabled, kw)
+
+    def _edit_loads(self, load_scale: float) -> None:
+        if load_scale == self._last_scale:
+            return
+        # 逐条单行命令（多行批量经 Text.Command 会解析中断，与编译同因）
+        for (nid, ph), (p, q) in self._base_load.items():
+            full = self.naming.load_of[(nid, ph)]
+            dss.Text.Command("%s.kW=%.10g" % (full, p * load_scale))
+            dss.Text.Command("%s.kvar=%.10g" % (full, q * load_scale))
+        self._last_scale = load_scale
+
+    def _edit_pvs(self, pv_kw: Dict[str, float]) -> None:
+        for v in self.project.pvs:
+            kw = pv_kw.get(v.id, v.capacity_kw)
+            full = self.naming.pv_of[v.id]
+            prev = self._last_pv_state.get(v.id)
+            if kw <= 0.0:
+                if prev is None or prev[0]:
+                    dss.Text.Command("%s.enabled=no" % full)
+                self._last_pv_state[v.id] = (False, 0.0)
+            else:
+                if prev is not None and not prev[0]:
+                    dss.Text.Command("%s.enabled=yes" % full)
+                dss.Text.Command("%s.kW=%.10g" % (full, kw))
+                self._last_pv_state[v.id] = (True, kw)
+
+    def solve(self, pv_kw: Optional[Dict[str, float]] = None,
+              load_scale: float = 1.0) -> SnapshotResult:
+        self._edit_loads(load_scale)
+        self._edit_pvs(pv_kw or {})
+        dss.Text.Command("Solve")
+        result = SnapshotResult()
+        result.converged = _did_converge()
+        if not result.converged:
+            raise PowerflowError(
+                "潮流不收敛（控制闭环内求解除）。建议：减小该断面负荷/光伏"
+                "出力突变幅度，或放宽潮流迭代上限。")
+        result.voltages_pu = _read_voltages(self.project, self.naming)
+        result.line_loadings = _read_line_loadings(self.project, self.naming)
+        return result
+
+
 def solve_snapshot(project: Project,
                    pv_kw: Optional[Dict[str, float]] = None,
                    load_scale: float = 1.0) -> SnapshotResult:

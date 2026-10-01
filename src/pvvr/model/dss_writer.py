@@ -30,6 +30,8 @@ class DssNaming:
         self.node_of_bus = {v: k for k, v in self.bus_of.items()}
         self.line_of = {ln.id: "Line.%s" % _sanitize(ln.id) for ln in project.lines}
         self.pv_of = {v.id: "Generator.%s" % _sanitize(v.id) for v in project.pvs}
+        # 负荷元件名在 build_dss_text 生成时回填：(节点 id, 相) → 全名
+        self.load_of = {}
 
     def bus_ref(self, node_id: str, phases: List[str]) -> str:
         return "%s.%s" % (self.bus_of[node_id],
@@ -48,10 +50,13 @@ def _matrix_diag(values: List[float]) -> str:
 
 def build_dss_text(project: Project,
                    pv_kw: Optional[Dict[str, float]] = None,
-                   load_scale: float = 1.0) -> str:
+                   load_scale: float = 1.0,
+                   naming: Optional[DssNaming] = None,
+                   emit_solve: bool = True) -> str:
     """生成完整 .dss 文本。pv_kw 指定各光伏实际出力（kW，三相总额定）；
-    未指定的光伏按额定满发。load_scale 为负荷整体缩放（统一曲线用）。"""
-    naming = DssNaming(project)
+    未指定的光伏按额定满发。load_scale 为负荷整体缩放（统一曲线用）。
+    emit_solve=False 供会话模式编译后逐次改参再求解。"""
+    naming = naming or DssNaming(project)
     pv_kw = pv_kw or {}
     vll = project.base.v_base_kv
     slack = project.base.slack
@@ -85,9 +90,11 @@ def build_dss_text(project: Project,
             if pkw <= 0 and qkvar <= 0:
                 continue
             load_seq += 1
-            L.append("New Load.L%05d_%s bus1=%s.%d phases=1 kW=%.10g kvar=%.10g "
+            full_name = "Load.L%05d_%s" % (load_seq, _sanitize(n.id))
+            naming.load_of[(n.id, ph)] = full_name
+            L.append("New %s bus1=%s.%d phases=1 kW=%.10g kvar=%.10g "
                      "model=1 conn=w Vminpu=0.05 Vmaxpu=2.0 status=fixed"
-                     % (load_seq, _sanitize(n.id), naming.bus_of[n.id],
+                     % (full_name, naming.bus_of[n.id],
                         _PHASE_TO_NODE[ph], pkw, qkvar))
 
     for v in project.pvs:
@@ -102,5 +109,6 @@ def build_dss_text(project: Project,
     L.append("Set Algorithm=Newton")
     L.append("Set Tolerance=%.10g" % project.algo.pf_tol)
     L.append("Set Maxiterations=%d" % project.algo.pf_max_iter)
-    L.append("Solve")
+    if emit_solve:
+        L.append("Solve")
     return "\n".join(L) + "\n"

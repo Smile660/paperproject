@@ -2,9 +2,10 @@
 
 from typing import Callable, Dict
 
-from pvvr.model.presets import ieee33, single_phase
+from pvvr.model.presets import ieee33, ieee33_hp, single_phase
 
 PRESETS: Dict[str, Callable[[], dict]] = {
     "ieee33": ieee33.build_dict,
+    "ieee33_hp": ieee33_hp.build_dict,
     "single_phase": single_phase.build_dict,
 }
